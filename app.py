@@ -11,7 +11,7 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Chennai Logistics Aggregator", layout="wide")
 DB_FILE = "logistics_db.json"
 
-# --- 🚀 CUSTOM BRANDING DESIGN & TEXT LIGHTING CSS ---
+# --- 🚀 CUSTOM BRANDING DESIGN & FINTECH TIMELINE CSS ---
 st.markdown("""
     <style>
         .stApp { background-color: #0d1117; }
@@ -21,7 +21,7 @@ st.markdown("""
         .stDataFrame div, table, th, td, [data-testid="stTable"] { color: #ecf2f8 !important; background-color: #161b22 !important; }
         .streamlit-expanderHeader { background-color: #161b22 !important; border: 1px solid #30363d !important; border-radius: 8px !important; color: #00FFCC !important; }
         
-        /* Financial Metrics Highlight Style */
+        /* Unified Tracking & Payment Card Shadowing */
         div[data-testid="stMetricBlock"] {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -87,19 +87,12 @@ def save_data(data):
 
 data = load_data()
 
-# Robust database migration to ensure new financial fields always exist
-if "producer_wallet" not in data:
-    data["producer_wallet"] = 25000
+# Check fields migration to clear errors
+if "producer_wallet" not in data: data["producer_wallet"] = 25000
 for op in data["operators"]:
-    if "rate_per_km" not in op:
-        op["rate_per_km"] = 12 if "Two-Wheeler" in op["vehicle"] else (30 if "Tata Ace" in op["vehicle"] else 65)
-    if "capacity" not in op:
-        op["capacity"] = 30 if "Two-Wheeler" in op["vehicle"] else (850 if "Tata Ace" in op["vehicle"] else 4000)
-    if "wallet_balance" not in op:
-        op["wallet_balance"] = random.randint(2000, 15000)
-for s in data["shipments"]:
-    if "payment_status" not in s:
-        s["payment_status"] = "Released to Operator" if s["status"] == "Delivered" else "Paid (In Escrow)"
+    if "wallet_balance" not in op: op["wallet_balance"] = 5000
+    if "rate_per_km" not in op: op["rate_per_km"] = 30
+    if "capacity" not in op: op["capacity"] = 1000
 save_data(data)
 
 HUB_COORDINATES = {
@@ -111,9 +104,9 @@ HUB_COORDINATES = {
 def create_satellite_map(center_coords, zoom=11):
     sat_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     labels_url = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
-    m = folium.Map(location=center_coords, zoom_start=zoom, tiles=sat_url, attr="Esri Satellite")
+    m = folium.Map(location=center_coords, zoom_start=zoom, tiles=sat_url, attr="Esri")
     folium.TileLayer(tiles=labels_url, attr="Esri Labels", name="Road Labels", overlay=True, control=False).add_to(m)
-    folium.Circle(location=[13.04, 80.22], radius=12000, color="#00FFCC", fill=True, fill_color="#00FFCC", fill_opacity=0.08).add_to(m)
+    folium.Circle(location=[13.04, 80.22], radius=12000, color="#00FFCC", fill=True, fill_color="#00FFCC", fill_opacity=0.05).add_to(m)
     return m
 
 # --- SIDEBAR NAVIGATION ---
@@ -123,32 +116,31 @@ user_role = st.sidebar.radio("Go To View:", ["🌾 Producer Portal", "🚛 Opera
 
 # --- 1. PRODUCER PORTAL ---
 if user_role == "🌾 Producer Portal":
-    st.title("🌾 Producer Dashboard & Digital Escrow")
+    st.title("🌾 Producer Dashboard & Unified Freight Ledgers")
     
-    # Financial summary bar for Shippers
+    # Header Balance Counters
     c_w1, c_w2 = st.columns(2)
-    with c_w1:
-        st.metric(label="🛡️ Shippers Prepaid Wallet Balance", value=f"₹{data['producer_wallet']:,}")
+    with c_w1: st.metric(label="🛡️ Shippers Available Balance", value=f"₹{data['producer_wallet']:,}")
     with c_w2:
         escrow_sum = sum(s["fare"] for s in data["shipments"] if s["payment_status"] == "Paid (In Escrow)")
-        st.metric(label="🔒 Funds Currently Held Secure in Escrow", value=f"₹{escrow_sum:,}")
-    
+        st.metric(label="🔒 Total Freight Value Locked in Route Escrow", value=f"₹{escrow_sum:,}")
+        
     col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
     
     with col1:
         active_backhauls = [op for op in data["operators"] if op["status"].startswith("Empty Backhaul:")]
         if active_backhauls:
-            st.markdown("### 🌟 30% Backhaul Price Markdown!")
+            st.markdown("### 🌟 30% Backhaul Price Match Detected!")
             for b_op in active_backhauls:
                 route_info = b_op["status"].replace("Empty Backhaul:", "")
                 st.warning(f"🚛 {b_op['name']} Empty Return: **{route_info}**")
-                if st.button(f"Claim Discount & Hold Escrow", key=f"bh_claim_{b_op['id']}"):
+                if st.button(f"Fund & Claim Backhaul Route", key=f"bh_claim_{b_op['id']}"):
                     try:
                         b_pickup, b_dest = route_info.split("➡️")
                         b_pickup, b_dest = b_pickup.strip(), b_dest.strip()
                     except:
                         b_pickup, b_dest = "Tambaram Delivery Hub", "Koyambedu Wholesale Market"
-                        
+                    
                     mock_distance = random.randint(15, 30)
                     discounted_fare = int((mock_distance * b_op.get("rate_per_km", 25)) * 0.70)
                     
@@ -163,18 +155,16 @@ if user_role == "🌾 Producer Portal":
                         }
                         data["shipments"].append(new_shipment)
                         b_op["status"] = "Busy"
-                        save_data(data); st.success("💰 Escrow Funded! Booking active."); st.rerun()
-                    else:
-                        st.error("Insufficient wallet funds to lock route escrow.")
+                        save_data(data); st.success("💰 Escrow Funded! Tracking ID active."); st.rerun()
             st.markdown("---")
 
-        st.markdown("### Request Transport Match")
+        st.markdown("### Book Freight & Fund Route Escrow")
         with st.form("delivery_form", clear_on_submit=True):
-            cargo = st.text_input("Goods / Produce Type")
+            cargo = st.text_input("Goods Type")
             weight = st.number_input("Total Load Weight (kg)", min_value=1, value=100)
-            pickup = st.text_input("Pickup Hub")
-            destination = st.text_input("Drop Destination")
-            submit = st.form_submit_button("Match & Fund Escrow Route")
+            pickup = st.text_input("Pickup Hub (e.g., Koyambedu)")
+            destination = st.text_input("Drop Destination (e.g., Tambaram)")
+            submit = st.form_submit_button("Authorize Escrow & Match Driver")
             
             if submit and cargo and pickup and destination:
                 available_ops = [op for op in data["operators"] if op["status"] == "Available" and op["capacity"] >= weight]
@@ -193,56 +183,67 @@ if user_role == "🌾 Producer Portal":
                         }
                         data["shipments"].append(new_shipment)
                         best_op["status"] = "Busy"
-                        save_data(data); st.success(f"🎉 Escrow Funded! ID: {shipment_id}"); st.rerun()
+                        save_data(data); st.success(f"🎉 Escrow Secured! ID: {shipment_id}"); st.rerun()
                     else:
-                        st.error("❌ Insufficient funds in Prepaid Wallet to book this operator.")
+                        st.error("❌ Balance insufficient to clear driver escrow route costs.")
 
     with col2:
-        st.markdown("### Active Consignment Financials")
+        st.markdown("### Unified Tracker & Payment Stream")
         if not data["shipments"]:
-            st.info("No active shipments on the log.")
+            st.info("No shipments active on network log.")
         else:
             for s in reversed(data["shipments"]):
-                with st.expander(f"📦 {s['cargo']} ({s['id']})"):
-                    st.write(f"**Route:** {s['pickup']} ➡️ {s['destination']}")
-                    st.write(f"**Fare Escrow Locked:** ₹{s['fare']}")
-                    st.info(f"💳 **Payment Status:** `{s['payment_status']}`")
+                with st.expander(f"📦 {s['cargo']} [ID: {s['id']}]"):
+                    st.write(f"**Route Corridor:** {s['pickup']} ➡️ {s['destination']}")
+                    st.write(f"**Carrier Fleet Partner:** {s['operator']}")
                     
-                    status = s["status"]
-                    if status == "Assigned": st.progress(25, text="Driver Booked")
-                    elif status == "Picked Up": st.progress(50, text="Loading Completed")
-                    elif status == "In Transit": st.progress(75, text="In Transit")
-                    elif status == "Delivered": st.progress(100, text="Delivered 🎉")
+                    # LAYERED REAL-TIME PAYMENTS + TRACKING ENGINE INFUSION
+                    st.markdown("---")
+                    st.markdown(f"💰 **Financial Ledger:** ₹{s['fare']} &rarr; `{s['payment_status']}`")
+                    
+                    if s.get("is_split"):
+                        st.info("⚡ **Multi-Modal Last Mile Hand-off Active**")
+                        for child in s["child_trips"]:
+                            st.write(f"🛵 {child['runner']} &rarr; `{child['status']}` ({child['loc']})")
+                    else:
+                        status = s["status"]
+                        if status == "Stuck at Gate Queue":
+                            st.warning(f"⚠️ **Gate Queue Delays Active:** Vehicle token position #{s.get('gate_queue', 12)}")
+                        else:
+                            if status == "Assigned": st.progress(25, text="Milestone 1/4: Escrow Funded & Driver Booked")
+                            elif status == "Picked Up": st.progress(50, text="Milestone 2/4: Cargo Loaded at Source")
+                            elif status == "In Transit": st.progress(75, text="Milestone 3/4: Fleet Vector En Route")
+                            elif status == "Delivered": st.progress(100, text="Milestone 4/4: Dispatched & Payout Settled ✅")
 
     with col3:
         st.markdown("### 🗺️ Live Hybrid Hub Tracker")
         m_prod = create_satellite_map([13.0827, 80.2707], zoom=10)
         for key, coord in HUB_COORDINATES.items():
-            folium.Marker(coord, popup=f"Hub: {key.upper()}").add_to(m_prod)
+            folium.Marker(coord, popup=f"Terminal Hub: {key.upper()}").add_to(m_prod)
         st_folium(m_prod, width="100%", height=450, key="prod_map", returned_objects=[])
 
 # --- 2. OPERATOR PORTAL ---
 elif user_role == "🚛 Operator Portal":
-    st.title("🚛 Fleet Manifest & Settlement Terminal")
+    st.title("🚛 Fleet Control Manifest & Settlement Console")
     
-    col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
+    col1, col2, col3 = st.columns([1.1, 1.4, 1.5])
     
     with col1:
-        st.markdown("### Transporter Ledger Balances")
+        st.markdown("### Registered Driver Wallet Ledgers")
         for op in data["operators"]:
             st.markdown(f"**{op['name']}**")
-            st.code(f"Vehicle: {op['vehicle']} | Account Balance: ₹{op['wallet_balance']:,}")
+            st.code(f"Class: {op['vehicle']} | Certified Balance: ₹{op['wallet_balance']:,}")
             st.markdown("---")
 
     with col2:
-        st.markdown("### Trip Operations & Payout Release")
+        st.markdown("### Unified Logistics & Payout Disbursal Pipeline")
         active_jobs = [s for s in data["shipments"] if s["status"] != "Delivered"]
         
         if not active_jobs:
-            st.info("No active freights waiting action.")
+            st.info("No active freights waiting action items.")
         else:
             for s in active_jobs:
-                st.markdown(f"📦 **{s['cargo']}** (Value: ₹{s['fare']})")
+                st.markdown(f"📦 **{s['cargo']}** | Escrow Vault Value: **₹{s['fare']}**")
                 current_state = s["status"]
                 
                 if not s.get("is_split"):
@@ -253,20 +254,21 @@ elif user_role == "🚛 Operator Portal":
                         if st.button(f"Mark In Transit (ID: {s['id']})", key=f"it_{s['id']}", use_container_width=True):
                             s["status"] = "In Transit"; save_data(data); st.rerun()
                     elif current_state == "In Transit":
-                        if st.button(f"🚨 Gate Queue Delay (ID: {s['id']})", key=f"stk_{s['id']}", use_container_width=True):
+                        if st.button(f"🚨 Flag Market Gate Hold (ID: {s['id']})", key=f"stk_{s['id']}", use_container_width=True):
                             s["status"] = "Stuck at Gate Queue"; s["gate_queue"] = random.randint(8, 22); save_data(data); st.rerun()
                         
-                        if st.button(f"⚡ Split to Bikes (Alley Mode)", key=f"splt_{s['id']}", use_container_width=True):
+                        if st.button(f"⚡ Hand-off Last Mile to Bike Fleet", key=f"splt_{s['id']}", use_container_width=True):
                             s["is_split"] = True; s["status"] = "Split Delivery Last-Mile"
                             dest_clean = s["destination"].lower()
                             loc_name = "T. Nagar (Alley 1)" if "nagar" in dest_clean else ("Sowcarpet (Alley 2)" if "sowcarpet" in dest_clean else "Parrys (Alley 3)")
                             s["child_trips"] = [
                                 {"runner": "Bike Agent A", "status": "Out for Delivery", "loc": loc_name},
-                                {"runner": "Bike Agent B", "status": "Delivered ✅", "loc": loc_name}
+                                {"runner": "Bike Agent B", "status": "Out for Delivery", "loc": loc_name}
                             ]
                             save_data(data); st.rerun()
                         
-                        if st.button(f"✅ Drop & Release Escrow Payment", key=f"bh_pub_{s['id']}", use_container_width=True):
+                        # UNIFIED TRANSIT COMPLETION + FINANCIAL ESCROW DISBURSAL ACTION
+                        if st.button(f"✅ Confirm Dropoff & Disburse Escrow Funds (ID: {s['id']})", key=f"bh_pub_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
                             s["payment_status"] = "Released to Operator"
                             for op in data["operators"]:
@@ -274,9 +276,20 @@ elif user_role == "🚛 Operator Portal":
                                     op["wallet_balance"] += s["fare"]
                                     op["status"] = f"Empty Backhaul: {s['destination']} ➡️ {s['pickup']}"
                             save_data(data); st.rerun()
+                            
+                    elif current_state == "Stuck at Gate Queue":
+                        if st.button(f"✅ Clear Token Yard & Disburse Escrow Funds (ID: {s['id']})", key=f"clr_{s['id']}", use_container_width=True):
+                            s["status"] = "Delivered"
+                            s["payment_status"] = "Released to Operator"
+                            s["gate_queue"] = 0
+                            for op in data["operators"]:
+                                if op["name"] == s["operator"]:
+                                    op["wallet_balance"] += s["fare"]
+                                    op["status"] = f"Empty Backhaul: {s['destination']} ➡️ {s['pickup']}"
+                            save_data(data); st.rerun()
                 else:
                     st.success("⚡ Split Flow Active: Managing Bike Fleet")
-                    if st.button(f"🏁 Close Bike Fleet & Claim Payout (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
+                    if st.button(f"🏁 Finalize Bike Runs & Release Escrow Payout (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
                         s["status"] = "Delivered"
                         s["payment_status"] = "Released to Operator"
                         for op in data["operators"]:
@@ -307,24 +320,44 @@ elif user_role == "📦 Consumer Tracking":
         if search_id:
             match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
             if match_found:
-                st.success(f"Consignment Found: **{match_found['cargo']}**")
+                # UNIFIED DISPLAY CARD
+                st.success(f"Consignment Verified: **{match_found['cargo']}**")
                 
-                # Payment cleared badge banner for consumers
+                # Layered FinTech Audit Badge
                 if match_found["payment_status"] == "Released to Operator":
-                    st.info("🟢 **Financial Audit:** Cargo Payment Settled & Disbursed to Driver.")
+                    st.markdown("🟢 **Financial Audit Ledger:** `PAYMENT CLEARANCE DISBURSED TO DRIVER WALLET`")
                 else:
-                    st.warning("🟡 **Financial Audit:** Delivery Charges Secured inside System Escrow Hold.")
+                    st.markdown("🟡 **Financial Audit Ledger:** `ESCROW RETAINED SECURE IN PLATFORM HOLD`")
                 
-                st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
-                st.write(f"**Total Settled Bill Amount:** ₹{match_found['fare']}")
+                st.write(f"**Route Manifest Corridor:** {match_found['pickup']} to {match_found['destination']}")
+                st.write(f"**Total Invoiced Freight Booking Bill:** ₹{match_found['fare']}")
                 
                 status = match_found["status"]
-                if status == "Delivered": st.progress(100, text="🏁 Consignment Delivered Successfully.")
-                else: st.progress(50, text=f"Current Status: {status}")
+                if status == "Delivered": 
+                    st.progress(100, text="🏁 Step 4/4: Cargo Drop Complete & Escrow Fully Disbursed.")
+                elif status == "Stuck at Gate Queue":
+                    st.error("🚨 Step 3.5/4: Physical Delays Active at Terminal Entrance Unloading Yards.")
+                    estimated_wait = match_found.get('gate_queue', 12) * 15
+                    st.metric(label="Estimated Yard Delay Clearance Timer", value=f"{estimated_wait} Mins")
+                else:
+                    st.progress(50, text=f"Physical Transit State Tracker: `{status}`")
             else:
                 st.error("Invalid tracking reference. Please verify the ID code.")
     
     with col_map:
         st.markdown("### Live Tactical Route Map")
         m_cust = create_satellite_map([13.0827, 80.2707], zoom=11)
+        
+        if search_id and 'match_found' in locals() and match_found:
+            p_coord = HUB_COORDINATES["koyambedu"]
+            d_coord = HUB_COORDINATES["tambaram"]
+            for key in HUB_COORDINATES:
+                if key in match_found["pickup"].lower(): p_coord = HUB_COORDINATES[key]
+                if key in match_found["destination"].lower(): d_coord = HUB_COORDINATES[key]
+                
+            line_color = "#FF9900" if match_found["status"] == "Stuck at Gate Queue" else ("#00FFFF" if match_found.get("is_split") else "#FF00FF")
+            folium.PolyLine(locations=[p_coord, d_coord], color=line_color, weight=6, opacity=0.9).add_to(m_cust)
+            folium.Marker(p_coord, popup="SOURCE").add_to(m_cust)
+            folium.Marker(d_coord, popup="DESTINATION").add_to(m_cust)
+
         st_folium(m_cust, width="100%", height=450, key="cust_map", returned_objects=[])
