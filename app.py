@@ -3,12 +3,13 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
+import folium
+from streamlit_folium import st_folium
 
 # --- CONFIGURATION & DATABASE SETUP ---
 st.set_page_config(page_title="Chennai Logistics Aggregator", layout="wide")
 DB_FILE = "logistics_db.json"
 
-# Initialize a database customized for the Chennai market if it doesn't exist
 if not os.path.exists(DB_FILE):
     initial_data = {
         "operators": [
@@ -168,26 +169,44 @@ elif user_role == "🚛 Operator Portal":
 # --- 3. CONSUMER TRACKING ---
 elif user_role == "📦 Consumer Tracking":
     st.title("📦 Consignment Quick Status Portal")
-    st.markdown("### Enter your Tracking ID to view the status of incoming goods:")
     
-    search_id = st.text_input("Tracking Reference Number", placeholder="e.g., TRK-CH101")
+    col_input, col_map = st.columns([1, 1])
     
-    if search_id:
-        match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
-        if match_found:
-            st.success(f"Consignment Records Found: **{match_found['cargo']}**")
-            st.write(f"**Carrier Assigned:** {match_found['operator']}")
-            st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
-            
-            status = match_found["status"]
-            if status == "Assigned":
-                st.progress(25, text="📦 Step 1: Booking verified. Waiting for vehicle placement.")
-            elif status == "Picked Up":
-                st.progress(50, text="🚜 Step 2: Consignment loaded at source.")
-            elif status == "In Transit":
-                st.progress(75, text="🚚 Step 3: Vehicle en route on Chennai highway network.")
-            elif status == "Delivered":
-                st.info("✨ Final offloading signed off at destination.")
-                st.progress(100, text="🏁 Step 4: Consignment Delivered.")
-        else:
-            st.error("Invalid tracking reference. Please verify the ID code and try again.")
+    with col_input:
+        st.markdown("### Enter your Tracking ID:")
+        search_id = st.text_input("Tracking Reference Number", placeholder="e.g., TRK-CH101")
+        
+        if search_id:
+            match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
+            if match_found:
+                st.success(f"Consignment Records Found: **{match_found['cargo']}**")
+                st.write(f"**Carrier Assigned:** {match_found['operator']}")
+                st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
+                
+                status = match_found["status"]
+                if status == "Assigned":
+                    st.progress(25, text="📦 Step 1: Booking verified. Waiting for vehicle placement.")
+                elif status == "Picked Up":
+                    st.progress(50, text="🚜 Step 2: Consignment loaded at source.")
+                elif status == "In Transit":
+                    st.progress(75, text="🚚 Step 3: Vehicle en route on Chennai highway network.")
+                elif status == "Delivered":
+                    st.info("✨ Final offloading signed off at destination.")
+                    st.progress(100, text="🏁 Step 4: Consignment Delivered.")
+            else:
+                st.error("Invalid tracking reference. Please verify the ID code and try again.")
+    
+    with col_map:
+        st.markdown("### Live Transit Map Routing")
+        
+        # Center the interactive map coordinates around Chennai
+        chennai_center = [13.0827, 80.2707]
+        m = folium.Map(location=chennai_center, zoom_start=11, control_scale=True)
+        
+        # Plot key delivery cluster markers for demo context
+        folium.Marker([13.0692, 80.1948], popup="Koyambedu Hub (North Cluster)", icon=folium.Icon(color='green', icon='home')).add_to(m)
+        folium.Marker([12.9229, 80.1275], popup="Tambaram Station (South Cluster)", icon=folium.Icon(color='blue', icon='info-sign')).add_to(m)
+        folium.Marker([13.1068, 80.2184], popup="Madhavaram GNT Truck Terminal", icon=folium.Icon(color='red', icon='truck', prefix='fa')).add_to(m)
+        
+        # Render map object inside Streamlit layout
+        st_folium(m, width="100%", height=450, returned_objects=[])
