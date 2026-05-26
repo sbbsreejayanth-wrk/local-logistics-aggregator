@@ -12,8 +12,9 @@ st.set_page_config(page_title="NEO-CHENNAI | Autonomous Supply Chain Engine", la
 DB_FILE = "logistics_db.json"
 
 # --- INITIALIZE STATE ENGINE FOR PORTAL ROUTING ---
+# Views: "SPLASH" (Corporate Intro), "HOME" (6-Echelon Matrix Grid), "PRODUCER", "SUPPLIER", "WAREHOUSE", "OPERATOR", "MARKET", "CUSTOMER"
 if "current_view" not in st.session_state:
-    st.session_state["current_view"] = "HOME"
+    st.session_state["current_view"] = "SPLASH"
 
 # --- THE PREMIUM ENTERPRISE GLASSMORPHISM CSS ENGINE ---
 st.markdown("""
@@ -117,7 +118,7 @@ st.markdown("""
             border-radius: 8px !important;
             font-family: 'JetBrains Mono', monospace !important;
             font-weight: 600 !important;
-            padding: 10px 24px !important;
+            padding: 12px 28px !important;
             letter-spacing: 0.5px;
             transition: all 0.4s ease-in-out !important;
             width: 100%;
@@ -165,7 +166,7 @@ if not os.path.exists(DB_FILE):
         ],
         "supplier_raw_stock": 0,
         "supplier_refined_inventory": [
-            {"id": "REFN-001", "product": "Tomato Tomato Purée Cases", "qty": 50, "status": "In Warehouse Storage"}
+            {"id": "REFN-001", "product": "Tomato Purée Cases", "qty": 50, "status": "In Warehouse Storage"}
         ],
         "warehouses": {
             "Madhavaram Hub": {"capacity": 5000, "current_stock": 500},
@@ -203,23 +204,81 @@ def create_satellite_map(center_coords, zoom=11):
     folium.Circle(location=[13.04, 80.22], radius=12000, color="#00FFCC", fill=True, fill_color="#00FFCC", fill_opacity=0.04).add_to(m)
     return m
 
-def render_navigation_header(title):
+def render_navigation_header(title, return_target="HOME"):
     c_b1, c_b2 = st.columns([8, 2])
     with c_b1:
         st.markdown(f"<p style='font-family:\"JetBrains Mono\"; color:#00FFCC; margin:0;'>NETWORK NODE // {title.upper()}</p>", unsafe_allow_html=True)
     with c_b2:
-        if st.button("◀ Control Matrix Home"):
-            st.session_state["current_view"] = "HOME"
+        button_label = "◀ Control Matrix Home" if return_target == "HOME" else "◀ Corporate Overview"
+        if st.button(button_label):
+            st.session_state["current_view"] = return_target
             st.rerun()
     st.markdown("---")
 
 # ==========================================
+# 🌌 NEW SCENE: CORPORATE SPLASH DECK
+# ==========================================
+if st.session_state["current_view"] == "SPLASH":
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; font-size:3.5rem; margin-bottom:10px;'>⚡ NEO-CHENNAI OPERATIONS LABS</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00FFCC; font-family:\"JetBrains Mono\"; font-size:1.1rem; letter-spacing: 2px; margin-bottom:50px;'>Next-Gen Autonomous Supply Chain Infrastructure</p>", unsafe_allow_html=True)
+    
+    # Core Corporate Profile Section Layout
+    col_left, col_right = st.columns([1.1, 0.9])
+    
+    with col_left:
+        st.markdown("""
+            <div class='premium-card' style='margin-bottom:20px;'>
+                <h2 style='color:#ffffff; margin-top:0;'>Corporate Profile</h2>
+                <p style='color:#d1d5db; line-height:1.7;'>
+                    Neo-Chennai Operations Labs builds resilient digital networks to orchestrate complex logistics workflows. 
+                    By replacing fragmented intermediaries with unified tokenized escrow pools, autonomous routing rules, and multi-modal transit layers, 
+                    we seamlessly bridge physical production pipelines with retail marketplaces.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### 🛠️ Core Infrastructure Superpowers")
+        f_c1, f_c2 = st.columns(2)
+        with f_c1:
+            st.markdown("""
+                <div class='premium-card' style='padding:15px !important;'>
+                    <h4 style='color:#00FFCC; margin:0;'>🔗 Smart Escrow Clearing</h4>
+                    <p style='color:#9ca3af; font-size:0.8rem; margin:5px 0 0 0;'>Frictionless capital locks released instantly upon geolocation drop verification.</p>
+                </div>
+            """, unsafe_allow_html=True)
+        with f_c2:
+            st.markdown("""
+                <div class='premium-card' style='padding:15px !important;'>
+                    <h4 style='color:#00FFCC; margin:0;'>⚡ Multi-Modal Splitting</h4>
+                    <p style='color:#9ca3af; font-size:0.8rem; margin:5px 0 0 0;'>Dynamically splits freight cargo onto inner-city micromobility units when gridlock points form.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Initialize Core Platform Matrix 🚀", key="enter_platform"):
+            st.session_state["current_view"] = "HOME"
+            st.rerun()
+
+    with col_right:
+        st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-top:0;'>🌐 Live Telemetry Footprint</h3>", unsafe_allow_html=True)
+        st.caption("Active logistical node points tracking across the metropolitan territory map.")
+        m_splash = create_satellite_map([13.04, 80.22], zoom=10)
+        for name, coord in HUB_COORDINATES.items():
+            folium.CircleMarker(
+                location=coord, radius=6, color="#00FFCC", fill=True, fill_color="#00FFCC", fill_opacity=0.7, popup=name.upper()
+            ).add_to(m_splash)
+        st_folium(m_splash, width="100%", height=350, key="splash_map", returned_objects=[])
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ==========================================
 # 🏠 CENTRAL INTERFACE MATRIX GRID (HOME)
 # ==========================================
-if st.session_state["current_view"] == "HOME":
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align:center; font-size:2.8rem;'>⚡ NEO-CHENNAI MULTI-ECHELON MATRIX</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#9ca3af; font-family:\"JetBrains Mono\"; margin-bottom:50px;'>End-to-End Dynamic Supply Chain & Autonomous Freight Network Architecture</p>", unsafe_allow_html=True)
+elif st.session_state["current_view"] == "HOME":
+    render_navigation_header("Control Matrix Mainframe", return_target="SPLASH")
+    st.markdown("<h1 style='text-align:center; font-size:2.8rem;'>⚡ SYSTEM PORTAL REGISTRY</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#9ca3af; font-family:\"JetBrains Mono\"; margin-bottom:50px;'>Orchestrate, verify, and pass inventory tracking updates downstream through all 6 echelons</p>", unsafe_allow_html=True)
     
     row1_c1, row1_c2, row1_c3 = st.columns(3)
     row2_c1, row2_c2, row2_c3 = st.columns(3)
@@ -253,7 +312,6 @@ if st.session_state["current_view"] == "HOME":
 # ==========================================
 elif st.session_state["current_view"] == "PRODUCER":
     render_navigation_header("Producer Core Farm Gate")
-    
     st.metric(label="🛡️ Farm Enterprise Financial Reserve", value=f"₹{data['producer_wallet']:,}")
     
     col1, col2 = st.columns(2)
@@ -270,9 +328,8 @@ elif st.session_state["current_view"] == "PRODUCER":
                 st.rerun()
                 
     with col2:
-        st.markdown("### 🌾 Active Farm Inventory Piles (Available for Supplier Intake)")
-        if not data["farm_harvest_piles"]:
-            st.info("No raw harvest clusters resting at farm nodes.")
+        st.markdown("### 🌾 Active Farm Inventory Piles")
+        if not data["farm_harvest_piles"]: st.info("No raw harvest clusters resting at farm nodes.")
         else:
             for hp in data["farm_harvest_piles"]:
                 st.markdown(f"**ID:** `{hp['id']}` | **Crop:** `{hp['crop']}` | **Weight:** `{hp['qty']} kg` -> Status: `{hp['status']}`")
@@ -282,7 +339,6 @@ elif st.session_state["current_view"] == "PRODUCER":
 # ==========================================
 elif st.session_state["current_view"] == "SUPPLIER":
     render_navigation_header("Supplier & Refinery Engine")
-    
     st.metric(label="🧪 Branded Supplier Business Capital", value=f"₹{data['supplier_wallet']:,}")
     
     tab_buy, tab_refine, tab_ship = st.tabs(["🌾 Farm Procurement", "⚙️ Factory Packaging Lines", "🚚 Logistics Fulfillment Setup"])
@@ -290,11 +346,10 @@ elif st.session_state["current_view"] == "SUPPLIER":
     with tab_buy:
         st.markdown("### Buy Raw Yield From Local Producers")
         unsold_harvests = [h for h in data["farm_harvest_piles"] if h["status"] == "Unsold"]
-        if not unsold_harvests:
-            st.info("No farm gate harvest piles available to acquire right now.")
+        if not unsold_harvests: st.info("No farm gate harvest piles available to acquire right now.")
         else:
             for uh in unsold_harvests:
-                cost = uh["qty"] * 15 # Flat rate of 15 INR per kg raw cargo cost
+                cost = uh["qty"] * 15
                 st.markdown(f"📦 **Ref:** `{uh['id']}` | **Produce:** {uh['crop']} ({uh['qty']} kg) | **Purchase Cost:** `₹{cost:,}`")
                 if st.button(f"Purchase and Intake ({uh['id']})", key=f"buy_{uh['id']}"):
                     if data["supplier_wallet"] >= cost:
@@ -326,8 +381,7 @@ elif st.session_state["current_view"] == "SUPPLIER":
     with tab_ship:
         st.markdown("### Dispatch Processed Inventory to Regional Warehouse Clusters")
         ready_stock = [r for r in data["supplier_refined_inventory"] if r["status"] == "Ready at Factory Side"]
-        if not ready_stock:
-            st.info("No finished product stocks currently waiting at the factory site.")
+        if not ready_stock: st.info("No finished product stocks currently waiting at the factory site.")
         else:
             for rs in ready_stock:
                 st.markdown(f"📦 **Ref:** `{rs['id']}` | **Product Stack:** {rs['product']} ({rs['qty']} units)")
@@ -335,7 +389,6 @@ elif st.session_state["current_view"] == "SUPPLIER":
                 target_carrier = st.selectbox("Assign Fleet Transit Carrier Line:", [op["name"] for op in data["operators"] if op["status"] == "Available"], key=f"op_sel_{rs['id']}")
                 
                 if st.button(f"Book Freight Routing ({rs['id']})", key=f"bk_{rs['id']}"):
-                    # Formulate route path logic
                     mock_dist = random.randint(15, 45)
                     op_rate = next(o["rate_per_km"] for o in data["operators"] if o["name"] == target_carrier)
                     fare = mock_dist * op_rate
@@ -363,7 +416,6 @@ elif st.session_state["current_view"] == "SUPPLIER":
 # ==========================================
 elif st.session_state["current_view"] == "WAREHOUSE":
     render_navigation_header("Regional Warehouse Footprint")
-    
     st.markdown("### 🏬 Cross-Dock Warehouse Micro-Hub Footprint Utilization")
     wh_cols = st.columns(len(data["warehouses"]))
     idx = 0
@@ -375,8 +427,7 @@ elif st.session_state["current_view"] == "WAREHOUSE":
         
     st.markdown("<br>### 📦 Internal Inventory Item Ledger Tracking Sheets", unsafe_allow_html=True)
     wh_items = [r for r in data["supplier_refined_inventory"] if r["status"] == "In Warehouse Storage"]
-    if not wh_items:
-        st.info("No active commercial products sitting inside micro-hub inventory zones.")
+    if not wh_items: st.info("No active commercial products sitting inside micro-hub inventory zones.")
     else:
         for wi in wh_items:
             st.markdown(f"🗳️ **Batch Target ID:** `{wi['id']}` | **Product Variant:** {wi['product']} | **In Stock Volume:** `{wi['qty']} Units`")
@@ -426,11 +477,9 @@ elif st.session_state["current_view"] == "OPERATOR":
                         save_data(data); st.rerun()
                     if st.button(f"✅ Safe Handoff & Release Escrow (ID: {s['id']})", key=f"dc_{s['id']}"):
                         s["status"] = "Delivered"; s["payment_status"] = "Released to Operator"
-                        # Process downstream warehouse inventory injection if it was bound there
                         if s["destination"] in data["warehouses"]:
                             data["warehouses"][s["destination"]]["current_stock"] += int(s["weight"] / 10)
                         
-                        # Update linked supplier items configuration status state mapping
                         if "linked_refined_id" in s:
                             for idx_item in data["supplier_refined_inventory"]:
                                 if idx_item["id"] == s["linked_refined_id"]: idx_item["status"] = "In Warehouse Storage"
@@ -462,20 +511,15 @@ elif st.session_state["current_view"] == "OPERATOR":
 # ==========================================
 elif st.session_state["current_view"] == "MARKET":
     render_navigation_header("Market Storefront Outlet")
-    
     c_m1, c_m2 = st.columns(2)
     with c_m1: st.metric(label="🏪 Market Merchant Cash Vault Balance", value=f"₹{data['market_wallet']:,}")
-    with c_m2: st.caption("Tracks customer retail consumption trends instantly.")
-        
+    
     st.markdown("<br>### 🏪 Local Storefront Shelf Allocations Inventory", unsafe_allow_html=True)
     m_col1, m_col2 = st.columns(2)
-    with m_col1:
-        st.metric("Koyambedu Wholesale Stall Stock", value=f"{data['market_inventory']['Koyambedu Wholesale Stall']} Units")
-    with m_col2:
-        st.metric("T. Nagar Supermarket Outpost Stock", value=f"{data['market_inventory']['T. Nagar Supermarket Outpost']} Units")
+    with m_col1: st.metric("Koyambedu Wholesale Stall Stock", value=f"{data['market_inventory']['Koyambedu Wholesale Stall']} Units")
+    with m_col2: st.metric("T. Nagar Supermarket Outpost Stock", value=f"{data['market_inventory']['T. Nagar Supermarket Outpost']} Units")
         
     st.markdown("<br>### ⚡ Run Supply Chain Replenishment Flow", unsafe_allow_html=True)
-    st.write("Pull packaged goods down from Warehouse nodes into retail points.")
     with st.form("replenish_form"):
         from_wh = st.selectbox("Pull From Warehouse Hub Source:", list(data["warehouses"].keys()))
         to_market = st.selectbox("Inject Target Storefront Node Location:", list(data["market_inventory"].keys()))
@@ -483,11 +527,9 @@ elif st.session_state["current_view"] == "MARKET":
         
         if st.form_submit_button("Trigger Stock Pipeline Transport Request"):
             if data["warehouses"][from_wh]["current_stock"] >= pull_qty:
-                # Deduct from warehouse storage allocation pools
                 data["warehouses"][from_wh]["current_stock"] -= int(pull_qty)
-                # Auto generate carrier run line
                 mock_dist = random.randint(10, 30)
-                fare = mock_dist * 30 # Default routing standard cost indexing parameter
+                fare = mock_dist * 30
                 
                 s_id = f"TRK-RPL-{int(datetime.now().timestamp())}"
                 data["shipments"].append({
@@ -496,7 +538,6 @@ elif st.session_state["current_view"] == "MARKET":
                     "operator": "Muthu Chennai Fast Freight", "status": "Assigned", "distance": mock_dist, "fare": fare,
                     "gate_queue": 0, "is_split": False, "child_trips": [], "payment_status": "Paid (In Escrow)"
                 })
-                # Add straight to retail inventory instantly for simulation simplicity
                 data["market_inventory"][to_market] += int(pull_qty)
                 save_data(data)
                 st.toast("Store replenishment transport request sent. Freight routed.", icon="🏪")
@@ -504,11 +545,10 @@ elif st.session_state["current_view"] == "MARKET":
             else: st.error("Target warehouse lacks sufficient stock allocations.")
 
 # ==========================================
-# 📦 ECHELON 6: CUSTOMER GATEWAY (CX & PAYMENTS)
+# 📦 ECHELON 6: CUSTOMER GATEWAY
 # ==========================================
 elif st.session_state["current_view"] == "CUSTOMER":
     render_navigation_header("Consumer Gateway Interface")
-    
     c_pay1, c_pay2 = st.columns(2)
     with c_pay1: st.metric(label="💳 UNIFIED PREPAID CUSTOMER WALLET BALANCE", value=f"₹{data['customer_wallet']:,}")
     with c_pay2: st.metric(label="📈 TOTAL CARGO RUNS VERIFIED", value=len(data["shipments"]))
@@ -526,7 +566,7 @@ elif st.session_state["current_view"] == "CUSTOMER":
         
         with st.form("purchase_goods_form"):
             buy_units = st.number_input("Purchase Volume Units", min_value=1, max_value=20, value=2)
-            cost_total = buy_units * 120 # Flat consumer retail pricing tracking cost index metric
+            cost_total = buy_units * 120
             st.markdown(f"**Gross Total Invoiced Price:** `₹{cost_total:,}`")
             
             if st.form_submit_button("Authorize Payment & Checkout Order"):
@@ -566,7 +606,6 @@ elif st.session_state["current_view"] == "CUSTOMER":
                     with st.expander(f"🧾 INV-{s['id']} [{inv_status}]"):
                         base_fare = s.get("fare", 0)
                         st.markdown(f"**Gross Value:** `₹{base_fare:,}`")
-                        st.caption(f"Route Path Vector: {s['pickup']} -> {s['destination']}")
 
     with tab_radar:
         st.markdown("### Live Pathway Telemetry Vector")
@@ -577,7 +616,6 @@ elif st.session_state["current_view"] == "CUSTOMER":
                 st.success(f"Security Clearance Verified | Manifest: **{match_found['cargo']}**")
                 st.markdown(f"💰 **Freight Cost:** `₹{match_found.get('fare', 0)}` | **Escrow State:** `{match_found.get('payment_status')}`")
                 if match_found.get("is_split"):
-                    st.info("⚡ System deployed multi-modal runner assets to bypass perimeter congestion zones.")
                     for rn in match_found["child_trips"]: st.markdown(f"* `[ASSET]` **{rn['runner']}** -> State: `{rn['status']}` ({rn['loc']})")
                 else: st.metric("CURRENT FREIGHT STATE TIMELINE STATUS", value=match_found["status"])
             else: st.error("Tracking reference sequence unrecognized in database cluster.")
