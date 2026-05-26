@@ -11,6 +11,10 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="NEO-CHENNAI | Autonomous Logistics Aggregator", layout="wide")
 DB_FILE = "logistics_db.json"
 
+# --- 🚀 INITIALIZE STATE ENGINE FOR PORTAL ROUTING ---
+if "current_view" not in st.session_state:
+    st.session_state["current_view"] = "HOME"
+
 # --- 🚀 THE PREMIUM ENTERPRISE GLASSMORPHISM CSS ENGINE ---
 st.markdown("""
     <style>
@@ -47,21 +51,21 @@ st.markdown("""
         }
 
         /* Glassmorphic Data Cards & Widgets */
-        div[data-testid="stMetricBlock"], .streamlit-expanderHeader, div.stForm {
+        div[data-testid="stMetricBlock"], .streamlit-expanderHeader, div.stForm, .premium-card {
             background: rgba(22, 30, 49, 0.6) !important;
             backdrop-filter: blur(12px) !important;
             -webkit-backdrop-filter: blur(12px) !important;
             border: 1px solid rgba(0, 255, 204, 0.15) !important;
             border-radius: 12px !important;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
-            padding: 20px !important;
+            padding: 24px !important;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         
-        div[data-testid="stMetricBlock"]:hover {
+        div[data-testid="stMetricBlock"]:hover, .premium-card:hover {
             border-color: rgba(0, 255, 204, 0.4) !important;
             box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.1) !important;
-            transform: translateY(-2px);
+            transform: translateY(-3px);
         }
 
         /* Metric Labels Alignment */
@@ -89,10 +93,6 @@ st.markdown("""
             color: #ffffff !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 8px !important;
-        }
-        input:focus, select:focus, textarea:focus {
-            border-color: #00FFCC !important;
-            box-shadow: 0 0 8px rgba(0, 255, 204, 0.2) !important;
         }
 
         /* High-End Enterprise Tables */
@@ -142,14 +142,14 @@ st.markdown("""
             border-bottom: 2px solid #00FFCC !important;
         }
 
-        /* Left Hand Navigation Rail styling */
+        /* Hide Streamlit Left-Hand Navigation Completely */
         section[data-testid="stSidebar"] {
-            background: #070a10 !important;
-            border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+            display: none !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
+# --- DATABASE LOGIC ENGINE ---
 default_operators = [
     {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 850, "status": "Available", "rate_per_km": 30, "wallet_balance": 4500},
     {"id": 2, "name": "Annamalai Local Couriers", "vehicle": "Two-Wheeler", "capacity": 30, "status": "Available", "rate_per_km": 12, "wallet_balance": 1200},
@@ -162,19 +162,10 @@ if not os.path.exists(DB_FILE):
         "producer_wallet": 25000,
         "shipments": [
             {
-                "id": "TRK-CH101",
-                "cargo": "Fresh Tomatoes",
-                "weight": 500,
-                "pickup": "Koyambedu Wholesale Market",
-                "destination": "Tambaram Delivery Hub",
-                "operator": "Muthu Chennai Fast Freight",
-                "status": "In Transit",
-                "distance": 24,
-                "fare": 720,
-                "gate_queue": 0,
-                "is_split": False,
-                "child_trips": [],
-                "payment_status": "Paid (In Escrow)"
+                "id": "TRK-CH101", "cargo": "Fresh Tomatoes", "weight": 500,
+                "pickup": "Koyambedu Wholesale Market", "destination": "Tambaram Delivery Hub",
+                "operator": "Muthu Chennai Fast Freight", "status": "In Transit", "distance": 24, "fare": 720,
+                "gate_queue": 0, "is_split": False, "child_trips": [], "payment_status": "Paid (In Escrow)"
             }
         ],
         "tickets": []
@@ -183,37 +174,18 @@ if not os.path.exists(DB_FILE):
         json.dump(initial_data, f, indent=4)
 
 def load_data():
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
-
+    with open(DB_FILE, "r") as f: return json.load(f)
 def save_data(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    with open(DB_FILE, "w") as f: json.dump(data, f, indent=4)
 
 data = load_data()
-
 if "producer_wallet" not in data: data["producer_wallet"] = 25000
 if "tickets" not in data: data["tickets"] = []
 
-for op in data["operators"]:
-    if "rate_per_km" not in op: op["rate_per_km"] = 12 if "Two-Wheeler" in op["vehicle"] else (30 if "Tata Ace" in op["vehicle"] else 65)
-    if "capacity" not in op: op["capacity"] = 30 if "Two-Wheeler" in op["vehicle"] else (850 if "Tata Ace" in op["vehicle"] else 4000)
-    if "wallet_balance" not in op: op["wallet_balance"] = 3500
-
-for s in data["shipments"]:
-    if "fare" not in s: s["fare"] = 0
-    if "payment_status" not in s: s["payment_status"] = "Released to Operator" if s["status"] == "Delivered" else "Paid (In Escrow)"
-save_data(data)
-
 HUB_COORDINATES = {
-    "koyambedu": [13.0692, 80.1948],
-    "tambaram": [12.9229, 80.1275],
-    "madhavaram": [13.1068, 80.2184],
-    "guindy": [13.0067, 80.2206],
-    "sriperumbudur": [12.9724, 79.9515],
-    "t. nagar (alley 1)": [13.0324, 80.2337],
-    "sowcarpet (alley 2)": [13.0978, 80.2792],
-    "parrys (alley 3)": [13.0945, 80.2891]
+    "koyambedu": [13.0692, 80.1948], "tambaram": [12.9229, 80.1275], "madhavaram": [13.1068, 80.2184],
+    "guindy": [13.0067, 80.2206], "sriperumbudur": [12.9724, 79.9515], "t. nagar (alley 1)": [13.0324, 80.2337],
+    "sowcarpet (alley 2)": [13.0978, 80.2792], "parrys (alley 3)": [13.0945, 80.2891]
 }
 
 def create_satellite_map(center_coords, zoom=11):
@@ -224,13 +196,78 @@ def create_satellite_map(center_coords, zoom=11):
     folium.Circle(location=[13.04, 80.22], radius=12000, color="#00FFCC", fill=True, fill_color="#00FFCC", fill_opacity=0.04).add_to(m)
     return m
 
-# --- PREMIUM BRAND SIDEBAR RAIL ---
-st.sidebar.markdown("<h2 style='color:#00FFCC; font-family:\"JetBrains Mono\"; text-align:center;'>⚡ NEO-CHX</h2>", unsafe_allow_html=True)
-st.sidebar.markdown("<p style='text-align:center; color:#9ca3af; font-size:0.8rem; margin-bottom:30px;'>Core Routing Protocol v4.2</p>", unsafe_allow_html=True)
-user_role = st.sidebar.radio("CHOOSE DEPLOYMENT VIEW:", ["🌾 Producer Portal", "🚛 Operator Portal", "📦 Consumer Tracking", "💬 Customer Experience & Payments"])
+# --- UTILITY BACK ACTION NAVIGATION HEADER ---
+def render_navigation_header():
+    c_b1, c_b2 = st.columns([8, 2])
+    with c_b1:
+        st.markdown(f"<p style='font-family:\"JetBrains Mono\"; color:#9ca3af; margin:0;'>ACTIVE PORTAL // SYSTEM NODE PROTOCOL</p>", unsafe_allow_html=True)
+    with c_b2:
+        if st.button("◀ Return to Control Center"):
+            st.session_state["current_view"] = "HOME"
+            st.rerun()
+    st.markdown("---")
 
-# --- 1. PRODUCER PORTAL ---
-if user_role == "🌾 Producer Portal":
+# ==========================================
+# 🏠 MACRO SCENE 0: ELITE HOME DASHBOARD MATRIX
+# ==========================================
+if st.session_state["current_view"] == "HOME":
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; font-size:3rem;'>⚡ NEO-CHENNAI CONTROL CENTER</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#9ca3af; font-family:\"JetBrains Mono\"; margin-bottom:50px;'>Autonomous Routing Operations & Shared Freight Infrastructure Network</p>", unsafe_allow_html=True)
+    
+    # 2x2 Clean Structural Interface Layout Grid
+    row1_c1, row1_c2 = st.columns(2)
+    row2_c1, row2_c2 = st.columns(2)
+    
+    with row1_c1:
+        st.markdown("""
+            <div class='premium-card'>
+                <h3 style='color:#00FFCC; margin-top:0;'>🌾 PRODUCER PORTAL</h3>
+                <p style='color:#9ca3af; font-size:0.9rem;'>Initialize automated spot-matching freight contracts, lock tokenized route escrow allocations, and instantly query micro-market backhaul optimizations.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Enter Producer Terminal Engine", key="go_producer"):
+            st.session_state["current_view"] = "PRODUCER"
+            st.rerun()
+            
+    with row1_c2:
+        st.markdown("""
+            <div class='premium-card'>
+                <h3 style='color:#00FFCC; margin-top:0;'>🚛 OPERATOR PORTAL</h3>
+                <p style='color:#9ca3af; font-size:0.9rem;'>Execute dynamic workflow states, engage multi-modal inner-alley split dispatches, flag terminal gate bottlenecks, and manage fleet balance streams.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Enter Operator Dispatch Rails", key="go_operator"):
+            st.session_state["current_view"] = "OPERATOR"
+            st.rerun()
+            
+    with row2_c1:
+        st.markdown("""
+            <div class='premium-card'>
+                <h3 style='color:#00FFCC; margin-top:0;'>📦 CONSUMER TRACKING</h3>
+                <p style='color:#9ca3af; font-size:0.9rem;'>Run deep end-to-end telemetry auditing on active shipments using system-encrypted hash identifiers to verify secure freight paths.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Initialize Radar Audit System", key="go_consumer"):
+            st.session_state["current_view"] = "CONSUMER"
+            st.rerun()
+            
+    with row2_c2:
+        st.markdown("""
+            <div class='premium-card'>
+                <h3 style='color:#00FFCC; margin-top:0;'>💬 CUSTOMER EXPERIENCE & PAYMENTS</h3>
+                <p style='color:#9ca3af; font-size:0.9rem;'>Top up unified corporate digital wallets, handle instant compliance dispute resolutions, and monitor automated financial transaction sheets.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Authorize Core Financial Terminal", key="go_cx"):
+            st.session_state["current_view"] = "CX"
+            st.rerun()
+
+# ==========================================
+# 🌾 MACRO SCENE 1: PRODUCER PORTAL
+# ==========================================
+elif st.session_state["current_view"] == "PRODUCER":
+    render_navigation_header()
     st.title("🌾 PRODUCER & TRADER COMMAND CENTER")
     
     c_w1, c_w2 = st.columns(2)
@@ -316,8 +353,11 @@ if user_role == "🌾 Producer Portal":
             folium.Marker(coord, popup=f"Terminal: {k.upper()}", icon=folium.Icon(color='blue', icon='cloud')).add_to(m_prod)
         st_folium(m_prod, width="100%", height=500, key="prod_map", returned_objects=[])
 
-# --- 2. OPERATOR PORTAL ---
-elif user_role == "🚛 Operator Portal":
+# ==========================================
+# 🚛 MACRO SCENE 2: OPERATOR PORTAL
+# ==========================================
+elif st.session_state["current_view"] == "OPERATOR":
+    render_navigation_header()
     st.title("🚛 TRANSPORTER MANIFEST CONTROL CONSOLE")
     col1, col2, col3 = st.columns([1.2, 1.4, 1.5])
     
@@ -378,8 +418,11 @@ elif user_role == "🚛 Operator Portal":
             folium.Marker(coords, popup=f"{job['cargo']}: {job['status']}", icon=folium.Icon(color='red')).add_to(m_op)
         st_folium(m_op, width="100%", height=500, key="op_map", returned_objects=[])
 
-# --- 3. CONSUMER TRACKING ---
-elif user_role == "📦 Consumer Tracking":
+# ==========================================
+# 📦 MACRO SCENE 3: CONSUMER TRACKING
+# ==========================================
+elif st.session_state["current_view"] == "CONSUMER":
+    render_navigation_header()
     st.title("📦 REAL-TIME CONSIGNMENT AUDIT RADAR")
     col_input, col_map = st.columns([1, 1])
     
@@ -404,11 +447,13 @@ elif user_role == "📦 Consumer Tracking":
         m_cust = create_satellite_map([13.0827, 80.2707], zoom=11)
         st_folium(m_cust, width="100%", height=500, key="cust_map", returned_objects=[])
 
-# --- 4. CUSTOMER EXPERIENCE (CX) & PAYMENT PORTAL (MODULAR UX RESTRICTION) ---
-elif user_role == "💬 Customer Experience & Payments":
+# ==========================================
+# 💬 MACRO SCENE 4: CX & PAYMENTS
+# ==========================================
+elif st.session_state["current_view"] == "CX":
+    render_navigation_header()
     st.title("💬 CUSTOMER INTELLIGENCE & TRANSACTION PORTAL")
     
-    # Financial Display Strip for Visibility
     c_pay1, c_pay2 = st.columns(2)
     with c_pay1:
         st.metric(label="💳 UNIFIED PREPAID CUSTOMER BALANCE", value=f"₹{data['producer_wallet']:,}")
@@ -418,11 +463,8 @@ elif user_role == "💬 Customer Experience & Payments":
         
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- UI/UX UPGRADE: COMPONENT STRUCTURE BY ARCHITECTURAL TABS ---
     tab_billing, tab_feedback, tab_disputes = st.tabs([
-        "💳 Balance Top-up & Ledger Sheets", 
-        "⭐ Fleet Performance Evaluation", 
-        "🎫 Service Escalation Desk"
+        "💳 Balance Top-up & Ledger Sheets", "⭐ Fleet Performance Evaluation", "🎫 Service Escalation Desk"
     ])
     
     with tab_billing:
@@ -434,10 +476,8 @@ elif user_role == "💬 Customer Experience & Payments":
                 topup_amount = st.number_input("Top-up Amount (INR)", min_value=100, max_value=100000, value=5000, step=500)
                 
                 pay_c1, pay_c2 = st.columns(2)
-                with pay_c1:
-                    card_num = st.text_input("Debit / Corporate Card Number", value="•••• •••• •••• 4242")
-                with pay_c2:
-                    card_expiry = st.text_input("Expiry Date / CVV", value="12/29 | •••")
+                with pay_c1: card_num = st.text_input("Debit / Corporate Card Number", value="•••• •••• •••• 4242")
+                with pay_c2: card_expiry = st.text_input("Expiry Date / CVV", value="12/29 | •••")
                     
                 if st.form_submit_button("Authorize Digital Fund Transfer"):
                     data["producer_wallet"] += int(topup_amount)
@@ -447,8 +487,7 @@ elif user_role == "💬 Customer Experience & Payments":
                     
         with cx_col2:
             st.markdown("### Active System Invoices")
-            if not data["shipments"]:
-                st.info("No active invoice chains detected.")
+            if not data["shipments"]: st.info("No active invoice chains detected.")
             else:
                 for s in reversed(data["shipments"]):
                     inv_status = "🟢 SETTLED" if s["status"] == "Delivered" else "🔒 ESCROW HOLD"
@@ -461,8 +500,7 @@ elif user_role == "💬 Customer Experience & Payments":
     with tab_feedback:
         st.markdown("### Fleet Performance Indices")
         delivered_shipments = [s for s in data["shipments"] if s["status"] == "Delivered"]
-        if not delivered_shipments: 
-            st.info("No completed runs verified to apply evaluation metrics.")
+        if not delivered_shipments: st.info("No completed runs verified to apply evaluation metrics.")
         else:
             shipment_options = {f"📦 {s['cargo']} (ID: {s['id']})": s for s in delivered_shipments}
             target_shipment = shipment_options[st.selectbox("Select Finished Manifest Target:", list(shipment_options.keys()))]
