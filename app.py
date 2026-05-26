@@ -12,24 +12,23 @@ st.set_page_config(page_title="NEO-CHENNAI | Autonomous Supply Chain Engine", la
 DB_FILE = "logistics_db.json"
 
 # --- INITIALIZE STATE ENGINE FOR PORTAL ROUTING ---
+# Views: "SPLASH" (Corporate Intro), "HOME" (6-Echelon Matrix Grid), "PRODUCER", "SUPPLIER", "WAREHOUSE", "OPERATOR", "MARKET", "CUSTOMER"
 if "current_view" not in st.session_state:
     st.session_state["current_view"] = "SPLASH"
 
 # --- THE PREMIUM ENTERPRISE GLASSMORPHISM CSS ENGINE ---
-# Enforces complete transparency down the entire Streamlit structural hierarchy
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&family=JetBrains+Mono:wght=400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-        /* Force transparency on every nested native container layer */
-        html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp, .main, .block-container {
-            background-color: transparent !important;
-            background: transparent !important;
+        /* Global Theme Overrides */
+        .stApp {
+            background: linear-gradient(135deg, #0b0f17 0%, #111827 100%) !important;
             font-family: 'Inter', sans-serif !important;
         }
         
-        /* Force highly visible typography colors over the dark backdrop matrix */
-        .stApp, .stMarkdown, p, span, div, .stText, label {
+        /* Force highly visible typography colors */
+        .stApp, .stMarkdown, p, span, div, .stText {
             color: #f3f4f6 !important;
         }
         
@@ -54,19 +53,19 @@ st.markdown("""
 
         /* Glassmorphic Data Cards & Widgets */
         div[data-testid="stMetricBlock"], .streamlit-expanderHeader, div.stForm, .premium-card {
-            background: rgba(11, 15, 23, 0.85) !important;
-            backdrop-filter: blur(25px) !important;
-            -webkit-backdrop-filter: blur(25px) !important;
-            border: 1px solid rgba(0, 255, 204, 0.2) !important;
+            background: rgba(22, 30, 49, 0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(0, 255, 204, 0.15) !important;
             border-radius: 12px !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
             padding: 24px !important;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         
         div[data-testid="stMetricBlock"]:hover, .premium-card:hover {
-            border-color: rgba(0, 255, 204, 0.5) !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.25) !important;
+            border-color: rgba(0, 255, 204, 0.4) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.1) !important;
             transform: translateY(-3px);
         }
 
@@ -93,7 +92,7 @@ st.markdown("""
         input, select, textarea, div[data-baseweb="select"] {
             background-color: #0b0f17 !important;
             color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 8px !important;
         }
 
@@ -148,85 +147,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-# --- JAVASCRIPT GLOBAL BACKGROUND ANIMATION CANVAS ---
-# Fixed template wrapper configuration to drop behind app DOM trees safely
-st.components.v1.html("""
-    <div id="canvas-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-9999; background:#0b0f17; pointer-events:none;">
-        <canvas id="networkCanvas" style="display:block; width:100%; height:100%;"></canvas>
-    </div>
-    <script>
-        const canvas = document.getElementById('networkCanvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        class Particle {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.6;
-                this.vy = (Math.random() - 0.5) * 0.6;
-                this.radius = Math.random() * 2 + 1.5;
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 255, 204, 0.7)';
-                ctx.fill();
-            }
-        }
-
-        for (let i = 0; i < 90; i++) {
-            particles.push(new Particle());
-        }
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Core space depth background filling
-            let gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
-            gradient.addColorStop(0, '#111827');
-            gradient.addColorStop(1, '#070a10');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                
-                for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist < 140) {
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - (dist / 140) * 0.3})`;
-                        ctx.lineWidth = 0.7;
-                        ctx.stroke();
-                    }
-                }
-            }
-            requestAnimationFrame(animate);
-        }
-        animate();
-    </script>
-""", height=0, width=0)
 
 # --- SYSTEM ECOSYSTEM DATABASE LAYER ---
 default_operators = [
@@ -296,13 +216,14 @@ def render_navigation_header(title, return_target="HOME"):
     st.markdown("---")
 
 # ==========================================
-# 🌌 CORPORATE SPLASH DECK
+# 🌌 NEW SCENE: CORPORATE SPLASH DECK
 # ==========================================
 if st.session_state["current_view"] == "SPLASH":
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align:center; font-size:3.5rem; margin-bottom:10px;'>⚡ NEO-CHENNAI OPERATIONS LABS</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#00FFCC; font-family:\"JetBrains Mono\"; font-size:1.1rem; letter-spacing: 2px; margin-bottom:50px;'>Next-Gen Autonomous Supply Chain Infrastructure</p>", unsafe_allow_html=True)
     
+    # Core Corporate Profile Section Layout
     col_left, col_right = st.columns([1.1, 0.9])
     
     with col_left:
