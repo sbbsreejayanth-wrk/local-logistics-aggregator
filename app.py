@@ -60,8 +60,7 @@ if user_role == "🌾 Producer Portal":
             weight = st.number_input("Total Load Weight (kg)", min_value=1, value=100)
             pickup = st.text_input("Pickup Location in Chennai", placeholder="e.g., Koyambedu, Madhavaram")
             destination = st.text_input("Drop Destination", placeholder="e.g., Guindy, Sriperumbudur, Tambaram")
-           submit = st.form_submit_button("Match with Local Operator")
-            
+            submit = st.form_submit_button("Match with Local Operator")
             if submit and cargo and pickup and destination:
                 available_ops = [op for op in data["operators"] if op["status"] == "Available" and op["capacity"] >= weight]
                 
