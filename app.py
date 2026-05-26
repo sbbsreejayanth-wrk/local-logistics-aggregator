@@ -11,6 +11,61 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Chennai Logistics Aggregator", layout="wide")
 DB_FILE = "logistics_db.json"
 
+# --- 🚀 CUSTOM BRANDING DESIGN & BACKGROUND CSS ---
+st.markdown("""
+    <style>
+        /* Main background color override */
+        .stApp {
+            background-color: #0d1117;
+            color: #ecf2f8;
+        }
+        
+        /* Custom Styling for Streamlit Expander Cards */
+        .streamlit-expanderHeader {
+            background-color: #161b22 !important;
+            border: 1px solid #30363d !important;
+            border-radius: 8px !important;
+            color: #00FFCC !important;
+        }
+        
+        /* Metric and Card Containers */
+        div[data-testid="stMetricBlock"] {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 12px rgba(0, 255, 204, 0.05);
+        }
+        
+        /* Sidebar Styling Override */
+        section[data-testid="stSidebar"] {
+            background-color: #161b22 !important;
+            border-right: 1px solid #30363d;
+        }
+        
+        /* Titles and Highlight Headers */
+        h1, h2, h3 {
+            color: #00FFCC !important;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+        }
+        
+        /* Buttons design */
+        .stButton>button {
+            background-color: #1f242c !important;
+            color: #00FFCC !important;
+            border: 1px solid #00FFCC !important;
+            border-radius: 6px !important;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            background-color: #00FFCC !important;
+            color: #0d1117 !important;
+            box-shadow: 0 0 10px #00FFCC;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 default_operators = [
     {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 850, "status": "Available", "rate_per_km": 30},
     {"id": 2, "name": "Annamalai Local Couriers", "vehicle": "Two-Wheeler", "capacity": 30, "status": "Available", "rate_per_km": 12},
@@ -50,7 +105,7 @@ def save_data(data):
 
 data = load_data()
 
-# Robust database patch engine to clean up schema mismatch
+# Clean up older databases on the fly to prevent KeyErrors
 for op in data["operators"]:
     if "rate_per_km" not in op:
         op["rate_per_km"] = 12 if "Two-Wheeler" in op["vehicle"] else (30 if "Tata Ace" in op["vehicle"] else 65)
@@ -98,7 +153,6 @@ if user_role == "🌾 Producer Portal":
     col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
     
     with col1:
-        # Check if there are any operators actively offering discounted return empty backhauls
         active_backhauls = [op for op in data["operators"] if op["status"].startswith("Empty Backhaul:")]
         
         if active_backhauls:
@@ -107,7 +161,6 @@ if user_role == "🌾 Producer Portal":
                 route_info = b_op["status"].replace("Empty Backhaul:", "")
                 st.warning(f"🚛 {b_op['name']} heading back via route: **{route_info}**")
                 if st.button(f"Claim 30% Backhaul Discount with {b_op['name'].split()[0]}", key=f"bh_claim_{b_op['id']}"):
-                    # Parse out the reverse pickup and drop locations
                     try:
                         b_pickup, b_dest = route_info.split("➡️")
                         b_pickup = b_pickup.strip()
@@ -117,7 +170,6 @@ if user_role == "🌾 Producer Portal":
                         
                     shipment_id = f"TRK-BH-{int(datetime.now().timestamp())}"
                     mock_distance = random.randint(15, 30)
-                    # Apply a sharp 30% discount automatically
                     standard_fare = mock_distance * b_op.get("rate_per_km", 25)
                     discounted_fare = int(standard_fare * 0.70)
                     
@@ -242,15 +294,12 @@ elif user_role == "🚛 Operator Portal":
                             ]
                             save_data(data); st.rerun()
                             
-                        # NEW OPTION: CLOSE OUT THE CURRENT TRIP AND TRIGGER EMPTY BACKHAUL STATE Immediately
                         if st.button(f"✅ Dropoff & Publish Empty Backhaul Discount (ID: {s['id']})", key=f"bh_pub_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
                             for op in data["operators"]:
                                 if op["name"] == s["operator"]:
-                                    # Formulate the reverse route path clearly
                                     op["status"] = f"Empty Backhaul: {s['destination']} ➡️ {s['pickup']}"
-                            save_data(data)
-                            st.rerun()
+                            save_data(data); st.rerun()
                             
                         if st.button(f"Complete Dropoff (Standard Release)", key=f"dc_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
