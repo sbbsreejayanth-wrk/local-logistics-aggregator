@@ -218,7 +218,7 @@ def create_satellite_map(center_coords, zoom=11):
 # --- PREMIUM BRAND SIDEBAR RAIL ---
 st.sidebar.markdown("<h2 style='color:#00FFCC; font-family:\"JetBrains Mono\"; text-align:center;'>⚡ NEO-CHX</h2>", unsafe_allow_html=True)
 st.sidebar.markdown("<p style='text-align:center; color:#9ca3af; font-size:0.8rem; margin-bottom:30px;'>Core Routing Protocol v4.2</p>", unsafe_allow_html=True)
-user_role = st.sidebar.radio("CHOOSE DEPLOYMENT VIEW:", ["🌾 Producer Portal", "🚛 Operator Portal", "📦 Consumer Tracking", "💬 Customer Experience"])
+user_role = st.sidebar.radio("CHOOSE DEPLOYMENT VIEW:", ["🌾 Producer Portal", "🚛 Operator Portal", "📦 Consumer Tracking", "💬 Customer Experience & Payments"])
 
 # --- 1. PRODUCER PORTAL ---
 if user_role == "🌾 Producer Portal":
@@ -392,15 +392,44 @@ elif user_role == "📦 Consumer Tracking":
         m_cust = create_satellite_map([13.0827, 80.2707], zoom=11)
         st_folium(m_cust, width="100%", height=500, key="cust_map", returned_objects=[])
 
-# --- 4. CUSTOMER EXPERIENCE (CX) PORTAL ---
-elif user_role == "💬 Customer Experience":
-    st.title("💬 CUSTOMER SERVICE DISPUTE & AUDIT TERMINAL")
-    cx_col1, cx_col2 = st.columns([1, 1])
+# --- 4. CUSTOMER EXPERIENCE (CX) & PAYMENT PORTAL ---
+elif user_role == "💬 Customer Experience & Payments":
+    st.title("💬 CUSTOMER INTELLIGENCE & TRANSACTION PORTAL")
+    
+    # Financial Display Strip for Visibility
+    c_pay1, c_pay2 = st.columns(2)
+    with c_pay1:
+        st.metric(label="💳 UNIFIED PREPAID CUSTOMER BALANCE", value=f"₹{data['producer_wallet']:,}")
+    with c_pay2:
+        total_spent = sum(s.get("fare", 0) for s in data["shipments"] if s["status"] == "Delivered")
+        st.metric(label="📈 TOTAL OVERALL FREIGHT TURNOVER", value=f"₹{total_spent:,}")
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    cx_col1, cx_col2 = st.columns([1.1, 0.9])
     
     with cx_col1:
-        st.markdown("### ⭐ DISPATCH QUALITY EVALUATION")
+        # --- NEW PREMIUM PAYMENT TERMINAL SUB-SECTION ---
+        st.markdown("### 💳 SECURE TOP-UP WALLET HUB")
+        with st.form("wallet_topup_form", clear_on_submit=True):
+            st.markdown("<p style='color:#00FFCC; font-size:0.85rem; font-family:\"JetBrains Mono\"'>MOCK INSTANT FUND GATEWAY</p>", unsafe_allow_html=True)
+            topup_amount = st.number_input("Top-up Amount (INR)", min_value=100, max_value=100000, value=5000, step=500)
+            
+            pay_c1, pay_c2 = st.columns(2)
+            with pay_c1:
+                card_num = st.text_input("Debit / Corporate Card Number", value="•••• •••• •••• 4242")
+            with pay_c2:
+                card_expiry = st.text_input("Expiry Date / CVV", value="12/29 | •••")
+                
+            if st.form_submit_button("Authorize Digital Fund Transfer"):
+                data["producer_wallet"] += int(topup_amount)
+                save_data(data)
+                st.success(f"🎉 Gateway Settled! Added ₹{topup_amount:,} directly to your corporate balance storage.")
+                st.rerun()
+                
+        st.markdown("<br>### ⭐ DISPATCH QUALITY EVALUATION", unsafe_allow_html=True)
         delivered_shipments = [s for s in data["shipments"] if s["status"] == "Delivered"]
-        if not delivered_shipments: st.info("No archive data sets verified to populate telemetry updates.")
+        if not delivered_shipments: 
+            st.info("No archive data sets verified to populate telemetry updates.")
         else:
             shipment_options = {f"📦 {s['cargo']} (ID: {s['id']})": s for s in delivered_shipments}
             target_shipment = shipment_options[st.selectbox("Select Finished Manifest Target:", list(shipment_options.keys()))]
@@ -422,8 +451,29 @@ elif user_role == "💬 Customer Experience":
                 save_data(data); st.success("Incident data broadcast to operator dispatch rails.")
                 
     with cx_col2:
-        st.markdown("### ❔ SYSTEM FUNCTIONAL PROTOCOLS (FAQ)")
+        st.markdown("### 🧾 DIGITAL TRANSACTION BILLING REPOSITORY")
+        if not data["shipments"]:
+            st.info("No invoice logs archived yet.")
+        else:
+            for s in reversed(data["shipments"]):
+                inv_status = "🟢 SETTIED" if s["status"] == "Delivered" else "🔒 HELD IN ESCROW"
+                with st.expander(f"🧾 INV-{s['id']} [{inv_status}]"):
+                    st.markdown(f"**Cargo Manifest Detail:** {s['cargo']}")
+                    st.markdown(f"**Route Vectors:** `{s['pickup']}` ➡️ `{s['destination']}`")
+                    st.markdown("---")
+                    
+                    # Programmatic Cost Auditing Breakdown
+                    base_fare = s.get("fare", 0)
+                    platform_cut = int(base_fare * 0.05)
+                    driver_payout = base_fare - platform_cut
+                    
+                    st.markdown(f"• Driver Core Freight Charge: `₹{driver_payout:,}`")
+                    st.markdown(f"• Automated Matching Overhead (5%): `₹{platform_cut:,}`")
+                    st.markdown(f"**Gross Total Cost Charged:** `₹{base_fare:,}`")
+                    st.caption(f"Payment State Lifecycle Indicator: {s.get('payment_status')}")
+
+        st.markdown("<br>### ❔ SYSTEM FUNCTIONAL PROTOCOLS (FAQ)", unsafe_allow_html=True)
         with st.expander("Why do assets report 'Stuck at Gate Queue'?"):
             st.write("Major market access corridors like Koyambedu maintain high physical intake friction profiles. The automated scheduling engine maps queue parameters dynamically to predict turnaround times down to the minute.")
         with st.expander("How does the Escrow Engine lock trader collateral securely?"):
-            st.write("Payments are strictly restricted using programmed programmatic holding. Operators cannot bypass, skim, or route balance reserves into personal clearing nodes until specific terminal validation protocols run on-site.")
+            st.write("Payments are strictly restricted using programmed holding locks. Operators cannot bypass or route balance reserves into personal clearing nodes until specific terminal validation protocols run on-site.")
