@@ -16,17 +16,19 @@ if "current_view" not in st.session_state:
     st.session_state["current_view"] = "SPLASH"
 
 # --- THE PREMIUM ENTERPRISE GLASSMORPHISM CSS ENGINE ---
+# Enforces complete transparency down the entire Streamlit structural hierarchy
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&family=JetBrains+Mono:wght=400;500;700&display=swap');
 
-        /* Global Theme Overrides - Forcing transparency across structural containers */
-        .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
+        /* Force transparency on every nested native container layer */
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp, .main, .block-container {
+            background-color: transparent !important;
             background: transparent !important;
             font-family: 'Inter', sans-serif !important;
         }
         
-        /* Force highly visible typography colors over the dark background */
+        /* Force highly visible typography colors over the dark backdrop matrix */
         .stApp, .stMarkdown, p, span, div, .stText, label {
             color: #f3f4f6 !important;
         }
@@ -52,19 +54,19 @@ st.markdown("""
 
         /* Glassmorphic Data Cards & Widgets */
         div[data-testid="stMetricBlock"], .streamlit-expanderHeader, div.stForm, .premium-card {
-            background: rgba(11, 15, 23, 0.8) !important;
-            backdrop-filter: blur(20px) !important;
-            -webkit-backdrop-filter: blur(20px) !important;
-            border: 1px solid rgba(0, 255, 204, 0.15) !important;
+            background: rgba(11, 15, 23, 0.85) !important;
+            backdrop-filter: blur(25px) !important;
+            -webkit-backdrop-filter: blur(25px) !important;
+            border: 1px solid rgba(0, 255, 204, 0.2) !important;
             border-radius: 12px !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7) !important;
             padding: 24px !important;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         
         div[data-testid="stMetricBlock"]:hover, .premium-card:hover {
-            border-color: rgba(0, 255, 204, 0.4) !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.2) !important;
+            border-color: rgba(0, 255, 204, 0.5) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.25) !important;
             transform: translateY(-3px);
         }
 
@@ -91,7 +93,7 @@ st.markdown("""
         input, select, textarea, div[data-baseweb="select"] {
             background-color: #0b0f17 !important;
             color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
             border-radius: 8px !important;
         }
 
@@ -148,8 +150,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- JAVASCRIPT GLOBAL BACKGROUND ANIMATION CANVAS ---
+# Fixed template wrapper configuration to drop behind app DOM trees safely
 st.components.v1.html("""
-    <canvas id="networkCanvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; background:#0b0f17;"></canvas>
+    <div id="canvas-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-9999; background:#0b0f17; pointer-events:none;">
+        <canvas id="networkCanvas" style="display:block; width:100%; height:100%;"></canvas>
+    </div>
     <script>
         const canvas = document.getElementById('networkCanvas');
         const ctx = canvas.getContext('2d');
@@ -166,8 +171,8 @@ st.components.v1.html("""
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
+                this.vx = (Math.random() - 0.5) * 0.6;
+                this.vy = (Math.random() - 0.5) * 0.6;
                 this.radius = Math.random() * 2 + 1.5;
             }
             update() {
@@ -179,19 +184,19 @@ st.components.v1.html("""
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 255, 204, 0.6)';
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.7)';
                 ctx.fill();
             }
         }
 
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 90; i++) {
             particles.push(new Particle());
         }
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Core space depth gradient
+            // Core space depth background filling
             let gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
             gradient.addColorStop(0, '#111827');
             gradient.addColorStop(1, '#070a10');
@@ -207,12 +212,12 @@ st.components.v1.html("""
                     const dy = particles[i].y - particles[j].y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist < 150) {
+                    if (dist < 140) {
                         ctx.beginPath();
                         ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - (dist / 150) * 0.25})`;
-                        ctx.lineWidth = 0.6;
+                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - (dist / 140) * 0.3})`;
+                        ctx.lineWidth = 0.7;
                         ctx.stroke();
                     }
                 }
