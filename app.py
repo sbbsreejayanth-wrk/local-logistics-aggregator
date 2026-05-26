@@ -126,7 +126,7 @@ def save_data(data):
 
 data = load_data()
 
-# Clean up older databases on the fly to prevent KeyErrors & support financial data fields
+# Clean up database on the fly to guarantee structural uniformity
 if "producer_wallet" not in data:
     data["producer_wallet"] = 25000
 
@@ -139,6 +139,8 @@ for op in data["operators"]:
         op["wallet_balance"] = 3500
 
 for s in data["shipments"]:
+    if "fare" not in s:
+        s["fare"] = 0
     if "payment_status" not in s:
         s["payment_status"] = "Released to Operator" if s["status"] == "Delivered" else "Paid (In Escrow)"
 save_data(data)
@@ -180,12 +182,12 @@ if user_role == "🌾 Producer Portal":
     st.title("🌾 Producer / Trader Dashboard")
     st.subheader("Book Shipments across Chennai & TN Hubs")
     
-    # Financial Overview Subbar
+    # Financial Overview Metrics Card Components
     c_w1, c_w2 = st.columns(2)
     with c_w1:
         st.metric(label="🛡️ Trader Available Prepaid Balance", value=f"₹{data['producer_wallet']:,}")
     with c_w2:
-        escrow_sum = sum(s["fare"] for s in data["shipments"] if s["payment_status"] == "Paid (In Escrow)")
+        escrow_sum = sum(s.get("fare", 0) for s in data["shipments"] if s.get("payment_status") == "Paid (In Escrow)")
         st.metric(label="🔒 Funds Held Secure inside Route Escrow", value=f"₹{escrow_sum:,}")
         
     col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
@@ -223,7 +225,7 @@ if user_role == "🌾 Producer Portal":
                         data["shipments"].append(new_shipment)
                         b_op["status"] = "Busy"
                         save_data(data)
-                        st.success(f"🎉 Backhaul matched & Escrow Funded! applied. ID: {shipment_id}")
+                        st.success(f"🎉 Backhaul matched & Escrow Funded! ID: {shipment_id}")
                         st.rerun()
                     else:
                         st.error("❌ Insufficient prepaid wallet balance to lock backhaul escrow.")
@@ -256,12 +258,15 @@ if user_role == "🌾 Producer Portal":
                         }
                         data["shipments"].append(new_shipment)
                         for op in data["operators"]:
-                            if op["name"] == best_op["name"]: op["status"] = "Busy"
+                            if op["name"] == best_op["name"]: 
+                                op["status"] = "Busy"
                         save_data(data)
                         st.success(f"🎉 Matched with {best_op['name']} & Escrow Secured! ID: {shipment_id}")
                         st.rerun()
                     else:
                         st.error(f"❌ Match found but wallet balance is too low. Required: ₹{calculated_fare}")
+                else:
+                    st.error("❌ No local vehicle capacity matching this shipment size is free right now.")
 
     with col2:
         st.markdown("### Active Consignment Tracker")
@@ -320,29 +325,40 @@ elif user_role == "🚛 Operator Portal":
                 if not s.get("is_split"):
                     if current_state == "Assigned":
                         if st.button(f"Confirm Pickup (ID: {s['id']})", key=f"pk_{s['id']}", use_container_width=True):
-                            s["status"] = "Picked Up"; save_data(data); st.rerun()
+                            s["status"] = "Picked Up"
+                            save_data(data)
+                            st.rerun()
                     elif current_state == "Picked Up":
                         if st.button(f"Mark In Transit (ID: {s['id']})", key=f"it_{s['id']}", use_container_width=True):
-                            s["status"] = "In Transit"; save_data(data); st.rerun()
+                            s["status"] = "In Transit"
+                            save_data(data)
+                            st.rerun()
                     elif current_state == "In Transit":
                         if st.button(f"🚨 Report Stuck at Gate Queue (ID: {s['id']})", key=f"stk_{s['id']}", use_container_width=True):
-                            s["status"] = "Stuck at Gate Queue"; s["gate_queue"] = random.randint(8, 22); save_data(data); st.rerun()
+                            s["status"] = "Stuck at Gate Queue"
+                            s["gate_queue"] = random.randint(8, 22)
+                            save_data(data)
+                            st.rerun()
                         
                         if st.button(f"⚡ Split Consignment to 2-Wheelers", key=f"splt_{s['id']}", use_container_width=True):
                             s["is_split"] = True
                             s["status"] = "Split Delivery Last-Mile"
                             dest_clean = s["destination"].lower()
                             
-                            if "nagar" in dest_clean: loc_name = "T. Nagar (Alley 1)"
-                            elif "sowcarpet" in dest_clean: loc_name = "Sowcarpet (Alley 2)"
-                            else: loc_name = "Parrys (Alley 3)"
+                            if "nagar" in dest_clean: 
+                                loc_name = "T. Nagar (Alley 1)"
+                            elif "sowcarpet" in dest_clean: 
+                                loc_name = "Sowcarpet (Alley 2)"
+                            else: 
+                                loc_name = "Parrys (Alley 3)"
                             
                             s["child_trips"] = [
                                 {"runner": "Chennai Bike Agent A", "status": "Out for Delivery", "loc": loc_name},
                                 {"runner": "Chennai Bike Agent B", "status": "Out for Delivery", "loc": loc_name},
                                 {"runner": "Chennai Bike Agent C", "status": "Delivered ✅", "loc": loc_name}
                             ]
-                            save_data(data); st.rerun()
+                            save_data(data)
+                            st.rerun()
                             
                         if st.button(f"✅ Dropoff & Disburse Backhaul Earnings (ID: {s['id']})", key=f"bh_pub_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
@@ -351,7 +367,8 @@ elif user_role == "🚛 Operator Portal":
                                 if op["name"] == s["operator"]:
                                     op["wallet_balance"] += s.get("fare", 0)
                                     op["status"] = f"Empty Backhaul: {s['destination']} ➡️ {s['pickup']}"
-                            save_data(data); st.rerun()
+                            save_data(data)
+                            st.rerun()
                             
                         if st.button(f"Complete Dropoff & Clear Standard Release", key=f"dc_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
@@ -360,17 +377,20 @@ elif user_role == "🚛 Operator Portal":
                                 if op["name"] == s["operator"]: 
                                     op["wallet_balance"] += s.get("fare", 0)
                                     op["status"] = "Available"
-                            save_data(data); st.rerun()
+                            save_data(data)
+                            st.rerun()
 
                     elif current_state == "Stuck at Gate Queue":
                         if st.button(f"✅ Clear Gate Token & Disburse Funds (ID: {s['id']})", key=f"clr_{s['id']}", use_container_width=True):
-                            s["status"] = "Delivered"; s["gate_queue"] = 0
+                            s["status"] = "Delivered"
+                            s["gate_queue"] = 0
                             s["payment_status"] = "Released to Operator"
                             for op in data["operators"]:
                                 if op["name"] == s["operator"]: 
                                     op["wallet_balance"] += s.get("fare", 0)
                                     op["status"] = "Available"
-                            save_data(data); st.rerun()
+                            save_data(data)
+                            st.rerun()
                 else:
                     st.success("⚡ Split Flow Active: Managing Bike Fleet")
                     if st.button(f"🏁 Finalize All Bike Closures & Release Payout (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
@@ -380,7 +400,8 @@ elif user_role == "🚛 Operator Portal":
                             if op["name"] == s["operator"]: 
                                 op["wallet_balance"] += s.get("fare", 0)
                                 op["status"] = "Available"
-                        save_data(data); st.rerun()
+                        save_data(data)
+                        st.rerun()
 
     with col3:
         st.markdown("### 🗺️ Operational Dispatch Console")
@@ -415,7 +436,7 @@ elif user_role == "📦 Consumer Tracking":
             if match_found:
                 st.success(f"Consignment Records Found: **{match_found['cargo']}**")
                 
-                # Payment cleared tracking header card component
+                # Payment cleared tracking visibility status
                 if match_found.get("payment_status") == "Released to Operator":
                     st.info("🟢 **Financial Audit Clearance Ledger:** Freight charges settled and disbursed out to operator wallet.")
                 else:
