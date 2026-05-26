@@ -111,7 +111,8 @@ if not os.path.exists(DB_FILE):
                 "child_trips": [],
                 "payment_status": "Paid (In Escrow)"
             }
-        ]
+        ],
+        "tickets": []
     }
     with open(DB_FILE, "w") as f:
         json.dump(initial_data, f, indent=4)
@@ -129,6 +130,8 @@ data = load_data()
 # Clean up database on the fly to guarantee structural uniformity
 if "producer_wallet" not in data:
     data["producer_wallet"] = 25000
+if "tickets" not in data:
+    data["tickets"] = []
 
 for op in data["operators"]:
     if "rate_per_km" not in op:
@@ -175,7 +178,7 @@ def create_satellite_map(center_coords, zoom=11):
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("🚚 Chennai Logistics Hub")
 st.sidebar.markdown("Select your portal view below:")
-user_role = st.sidebar.radio("Go To View:", ["🌾 Producer Portal", "🚛 Operator Portal", "📦 Consumer Tracking"])
+user_role = st.sidebar.radio("Go To View:", ["🌾 Producer Portal", "🚛 Operator Portal", "📦 Consumer Tracking", "💬 Customer Experience"])
 
 # --- 1. PRODUCER PORTAL ---
 if user_role == "🌾 Producer Portal":
@@ -310,6 +313,19 @@ elif user_role == "🚛 Operator Portal":
         st.markdown("### Registered Chennai Fleet & Ledgers")
         df_ops = pd.DataFrame(data["operators"])
         st.dataframe(df_ops[["name", "vehicle", "wallet_balance", "status"]], use_container_width=True, hide_index=True)
+        
+        st.markdown("### Active CX Support Tickets")
+        if not data.get("tickets"):
+            st.info("No open customer service tickets.")
+        else:
+            for tk in data["tickets"]:
+                with st.expander(f"🎫 [{tk['type']}] - ID: {tk['shipment_id']}"):
+                    st.write(f"**Status:** `{tk['status']}`")
+                    st.write(f"**Message:** {tk['issue_text']}")
+                    if tk["status"] == "Open" and st.button("Resolve Ticket", key=f"res_{tk['timestamp']}"):
+                        tk["status"] = "Resolved"
+                        save_data(data)
+                        st.rerun()
 
     with col2:
         st.markdown("### Live Driver Trip Actions")
@@ -483,3 +499,64 @@ elif user_role == "📦 Consumer Tracking":
             folium.Marker(d_coord, popup="FINAL DROP ZONE", icon=folium.Icon(color='blue', icon='flag')).add_to(m_cust)
 
         st_folium(m_cust, width="100%", height=450, key="cust_map", returned_objects=[])
+
+# --- 4. CUSTOMER EXPERIENCE (CX) PORTAL ---
+elif user_role == "💬 Customer Experience":
+    st.title("💬 Customer Experience & Support Desk")
+    st.subheader("Rate your experience, file driver complaints, or get support tools.")
+    
+    cx_col1, cx_col2 = st.columns([1, 1])
+    
+    with cx_col1:
+        st.markdown("### ⭐ Rate Your Completed Delivery")
+        delivered_shipments = [s for s in data["shipments"] if s["status"] == "Delivered"]
+        
+        if not delivered_shipments:
+            st.info("No completed shipments found to review yet.")
+        else:
+            shipment_options = {f"📦 {s['cargo']} (ID: {s['id']})": s for s in delivered_shipments}
+            selected_shipment_str = st.selectbox("Select Your Shipment:", list(shipment_options.keys()))
+            target_shipment = shipment_options[selected_shipment_str]
+            
+            with st.form("feedback_form", clear_on_submit=True):
+                rating = st.slider("Rate Fleet Operator Performance (1-5 Stars)", 1, 5, 5)
+                feedback_text = st.text_area("Share your feedback details:", placeholder="Driver punctuality, cargo condition...")
+                submit_review = st.form_submit_button("Submit Performance Review")
+                
+                if submit_review:
+                    # Logic storing rating safely on the shipment context
+                    target_shipment["rating"] = rating
+                    target_shipment["feedback"] = feedback_text
+                    save_data(data)
+                    st.success("🎉 Thank you! Your performance rating has been logged securely.")
+        
+        st.markdown("---")
+        st.markdown("### 🎫 File an Escalation / Support Ticket")
+        with st.form("ticket_form", clear_on_submit=True):
+            ticket_id = st.text_input("Enter Shipment ID associated with issue:", placeholder="e.g., TRK-CH101")
+            issue_type = st.selectbox("What went wrong?", ["Delayed Delivery", "Damaged Cargo Items", "Driver/Agent Misbehavior", "Billing/Escrow Error"])
+            issue_desc = st.text_area("Detailed description of issue:")
+            submit_ticket = st.form_submit_button("File Dispute Ticket")
+            
+            if submit_ticket and ticket_id and issue_desc:
+                new_ticket = {
+                    "shipment_id": ticket_id,
+                    "type": issue_type,
+                    "issue_text": issue_desc,
+                    "status": "Open",
+                    "timestamp": int(datetime.now().timestamp())
+                }
+                data["tickets"].append(new_ticket)
+                save_data(data)
+                st.success(f"🚨 Support Ticket successfully created! Operators have been alerted.")
+                
+    with cx_col2:
+        st.markdown("### ❔ Frequently Asked Questions (FAQ)")
+        with st.expander("Why is my shipment 'Stuck at Gate Queue'?"):
+            st.write("Major market terminals like Koyambedu Wholesale Market have limited access gates. During high-volume periods, large trucks may face temporary gate management holds. Tracking metrics calculate wait times automatically.")
+            
+        with st.expander("How does Route Escrow protection secure my money?"):
+            st.write("When you book a route, funding is automatically locked into secure escrow holding. Transporters cannot access the payout funds until they drop off cargo, confirm delivery completion parameters, or clear terminal gate tokens.")
+            
+        with st.expander("What does 'Split Delivery Last-Mile' mean?"):
+            st.write("To prevent dense urban gridlocks (like tight alleyways in Sowcarpet or Parrys), our network routes large commercial vehicles to external perimeter hubs, splitting bulk weight efficiently across several flexible two-wheeler runner teams.")
