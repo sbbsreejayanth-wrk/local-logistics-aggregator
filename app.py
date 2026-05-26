@@ -61,6 +61,7 @@ if user_role == "🌾 Producer Portal":
             pickup = st.text_input("Pickup Location in Chennai", placeholder="e.g., Koyambedu, Madhavaram")
             destination = st.text_input("Drop Destination", placeholder="e.g., Guindy, Sriperumbudur, Tambaram")
             submit = st.form_submit_button("Match with Local Operator")
+            
             if submit and cargo and pickup and destination:
                 available_ops = [op for op in data["operators"] if op["status"] == "Available" and op["capacity"] >= weight]
                 
@@ -107,4 +108,86 @@ if user_role == "🌾 Producer Portal":
                     elif status == "Delivered":
                         st.progress(100, text="Step 4/4: Dispatched & Delivered Safely 🎉")
 
-# --- 2. OPER
+# --- 2. OPERATOR PORTAL ---
+elif user_role == "🚛 Operator Portal":
+    st.title("🚛 Local Transporter Manifest Control")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Registered Chennai Fleet")
+        df_ops = pd.DataFrame(data["operators"])
+        st.dataframe(df_ops[["name", "vehicle", "capacity", "status"]], use_container_width=True, hide_index=True)
+        
+        with st.expander("➕ Register a New Driver / Vehicle"):
+            new_name = st.text_input("Driver/Agency Name")
+            new_veh = st.selectbox("Vehicle Type", ["Two-Wheeler", "Tata Ace (Van)", "Eicher Pro (Truck)", "Container"])
+            new_cap = st.number_input("Payload Limit (kg)", min_value=10, max_value=15000, value=1000)
+            if st.button("Bring Online to Network"):
+                if new_name:
+                    data["operators"].append({
+                        "id": len(data["operators"]) + 1,
+                        "name": new_name,
+                        "vehicle": new_veh,
+                        "capacity": new_cap,
+                        "status": "Available"
+                    })
+                    save_data(data)
+                    st.success("Registered successfully!")
+                    st.rerun()
+
+    with col2:
+        st.markdown("### Live Driver Trip Actions (Single-Tap Updates)")
+        active_jobs = [s for s in data["shipments"] if s["status"] != "Delivered"]
+        
+        if not active_jobs:
+            st.info("No pending deliveries waiting for status updates.")
+        else:
+            for s in active_jobs:
+                st.markdown(f"📦 **Job Details:** {s['cargo']} ({s['weight']}kg) | Operator: **{s['operator']}**")
+                current_state = s["status"]
+                
+                if current_state == "Assigned":
+                    if st.button(f"Confirm Load Picked Up (ID: {s['id']})", key=s['id'], use_container_width=True):
+                        s["status"] = "Picked Up"
+                        save_data(data)
+                        st.rerun()
+                elif current_state == "Picked Up":
+                    if st.button(f"Mark Out for Delivery / In Transit (ID: {s['id']})", key=s['id'], use_container_width=True):
+                        s["status"] = "In Transit"
+                        save_data(data)
+                        st.rerun()
+                elif current_state == "In Transit":
+                    if st.button(f"Confirm Delivery Complete (ID: {s['id']})", key=s['id'], use_container_width=True):
+                        s["status"] = "Delivered"
+                        for op in data["operators"]:
+                            if op["name"] == s["operator"]:
+                                op["status"] = "Available"
+                        save_data(data)
+                        st.rerun()
+
+# --- 3. CONSUMER TRACKING ---
+elif user_role == "📦 Consumer Tracking":
+    st.title("📦 Consignment Quick Status Portal")
+    st.markdown("### Enter your Tracking ID to view the status of incoming goods:")
+    
+    search_id = st.text_input("Tracking Reference Number", placeholder="e.g., TRK-CH101")
+    
+    if search_id:
+        match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
+        if match_found:
+            st.success(f"Consignment Records Found: **{match_found['cargo']}**")
+            st.write(f"**Carrier Assigned:** {match_found['operator']}")
+            st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
+            
+            status = match_found["status"]
+            if status == "Assigned":
+                st.progress(25, text="📦 Step 1: Booking verified. Waiting for vehicle placement.")
+            elif status == "Picked Up":
+                st.progress(50, text="🚜 Step 2: Consignment loaded at source.")
+            elif status == "In Transit":
+                st.progress(75, text="🚚 Step 3: Vehicle en route on Chennai highway network.")
+            elif status == "Delivered":
+                st.info("✨ Final offloading signed off at destination.")
+                st.progress(100, text="🏁 Step 4: Consignment Delivered.")
+        else:
+            st.error("Invalid tracking reference. Please verify the ID code and try again.")
