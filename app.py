@@ -67,11 +67,33 @@ HUB_COORDINATES = {
     "parrys (alley 3)": [13.0945, 80.2891]
 }
 
-# --- 🛰️ FREE HIGH-RES SATELLITE MAP CONFIGURATOR ---
+# --- 🛰️ ENHANCED HYBRID SATELLITE ENGINE ---
 def create_satellite_map(center_coords, zoom=11):
-    satellite_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    attribution = "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-    return folium.Map(location=center_coords, zoom_start=zoom, tiles=satellite_url, attr=attribution)
+    # Base Aerospace Satellite Imagery
+    sat_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    # Transparent Road & Place Labels Layer (Adds street names over satellite imagery)
+    labels_url = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
+    
+    attr = "Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+    
+    # Initialize Map with Base Imagery
+    m = folium.Map(location=center_coords, zoom_start=zoom, tiles=sat_url, attr=attr)
+    
+    # Superimpose the Road Network Layer on top
+    folium.TileLayer(tiles=labels_url, attr="Esri Transportation", name="Road Labels", overlay=True, control=False).add_to(m)
+    
+    # Add an Operational Logistics Boundary Circle (Geofence ring around Chennai core)
+    folium.Circle(
+        location=[13.04, 80.22],
+        radius=12000, # 12 KM radius
+        color="#00FFCC",
+        fill=True,
+        fill_color="#00FFCC",
+        fill_opacity=0.08,
+        popup="Primary Aggregator Operation Ring"
+    ).add_to(m)
+    
+    return m
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("🚚 Chennai Logistics Hub")
@@ -141,10 +163,10 @@ if user_role == "🌾 Producer Portal":
                             elif status == "Delivered": st.progress(100, text="Step 4/4: Delivered 🎉")
 
     with col3:
-        st.markdown("### 🗺️ Aerospace Satellite Hub Network")
+        st.markdown("### 🗺️ Live Hybrid Hub Tracker")
         m_prod = create_satellite_map([13.0827, 80.2707], zoom=10)
         for key, coord in HUB_COORDINATES.items():
-            folium.Marker(coord, popup=f"Hub: {key.upper()}", icon=folium.Icon(color='green', icon='cloud')).add_to(m_prod)
+            folium.Marker(coord, popup=f"Terminal Hub: {key.upper()}", icon=folium.Icon(color='blue', icon='info-sign')).add_to(m_prod)
         st_folium(m_prod, width="100%", height=450, key="prod_map", returned_objects=[])
 
 # --- 2. OPERATOR PORTAL ---
@@ -171,128 +193,18 @@ elif user_role == "🚛 Operator Portal":
                 if not s.get("is_split"):
                     if current_state == "Assigned":
                         if st.button(f"Confirm Pickup (ID: {s['id']})", key=f"pk_{s['id']}", use_container_width=True):
-                            s["status"] = "Picked Up"
-                            save_data(data)
-                            st.rerun()
+                            s["status"] = "Picked Up"; save_data(data); st.rerun()
                     elif current_state == "Picked Up":
                         if st.button(f"Mark In Transit (ID: {s['id']})", key=f"it_{s['id']}", use_container_width=True):
-                            s["status"] = "In Transit"
-                            save_data(data)
-                            st.rerun()
+                            s["status"] = "In Transit"; save_data(data); st.rerun()
                     elif current_state == "In Transit":
                         if st.button(f"🚨 Report Stuck at Gate Queue (ID: {s['id']})", key=f"stk_{s['id']}", use_container_width=True):
-                            s["status"] = "Stuck at Gate Queue"
-                            s["gate_queue"] = random.randint(8, 22)
-                            save_data(data)
-                            st.rerun()
+                            s["status"] = "Stuck at Gate Queue"; s["gate_queue"] = random.randint(8, 22); save_data(data); st.rerun()
                         
-                        # --- CLEAN FIXED MULTI-MODAL SPLIT ENGINE ---
                         if st.button(f"⚡ Split Consignment to 2-Wheelers", key=f"splt_{s['id']}", use_container_width=True):
                             s["is_split"] = True
                             s["status"] = "Split Delivery Last-Mile"
                             dest_clean = s["destination"].lower()
                             
-                            if "nagar" in dest_clean:
-                                loc_name = "T. Nagar (Alley 1)"
-                            elif "sowcarpet" in dest_clean:
-                                loc_name = "Sowcarpet (Alley 2)"
-                            else:
-                                loc_name = "Parrys (Alley 3)"
-                            
-                            # Clean array declaration on continuous lines to stay perfectly valid
-                            s["child_trips"] = [
-                                {"runner": "Chennai Bike Agent A", "status": "Out for Delivery", "loc": loc_name},
-                                {"runner": "Chennai Bike Agent B", "status": "Out for Delivery", "loc": loc_name},
-                                {"runner": "Chennai Bike Agent C", "status": "Delivered ✅", "loc": loc_name}
-                            ]
-                            save_data(data)
-                            st.rerun()
-                            
-                        if st.button(f"Complete Dropoff (ID: {s['id']})", key=f"dc_{s['id']}", use_container_width=True):
-                            s["status"] = "Delivered"
-                            for op in data["operators"]:
-                                if op["name"] == s["operator"]: op["status"] = "Available"
-                            save_data(data)
-                            st.rerun()
-                    elif current_state == "Stuck at Gate Queue":
-                        if st.button(f"✅ Clear Gate Token & Dropoff (ID: {s['id']})", key=f"clr_{s['id']}", use_container_width=True):
-                            s["status"] = "Delivered"
-                            s["gate_queue"] = 0
-                            for op in data["operators"]:
-                                if op["name"] == s["operator"]: op["status"] = "Available"
-                            save_data(data)
-                            st.rerun()
-                else:
-                    st.success("⚡ Split Flow Active: Managing Bike Fleet")
-                    if st.button(f"🏁 Finalize All Bike Closures (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
-                        s["status"] = "Delivered"
-                        for op in data["operators"]:
-                            if op["name"] == s["operator"]: op["status"] = "Available"
-                        save_data(data)
-                        st.rerun()
-
-    with col3:
-        st.markdown("### 🗺️ Satellite Dispatch Operations Map")
-        m_op = create_satellite_map([13.0827, 80.2707], zoom=11)
-        for job in active_jobs:
-            coords = HUB_COORDINATES["koyambedu"]
-            for key in HUB_COORDINATES:
-                if key in job["pickup"].lower() or key in job["destination"].lower(): coords = HUB_COORDINATES[key]
-            
-            icon_color = 'orange' if job["status"] == "Stuck at Gate Queue" else ('purple' if job.get("is_split") else 'red')
-            folium.Marker(coords, popup=f"{job['cargo']} -> {job['status']}", icon=folium.Icon(color=icon_color)).add_to(m_op)
-        st_folium(m_op, width="100%", height=450, key="op_map", returned_objects=[])
-
-# --- 3. CONSUMER TRACKING ---
-elif user_role == "📦 Consumer Tracking":
-    st.title("📦 Consignment Quick Status Portal")
-    col_input, col_map = st.columns([1, 1])
-    
-    with col_input:
-        st.markdown("### Enter your Tracking ID:")
-        search_id = st.text_input("Tracking Reference Number", placeholder="e.g., TRK-CH101")
-        
-        if search_id:
-            match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
-            if match_found:
-                st.success(f"Consignment Records Found: **{match_found['cargo']}**")
-                st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
-                
-                if match_found.get("is_split"):
-                    st.info("⚡ **Congested Zone Action Protocol:** Your bulk cargo reached the urban ring barrier and was safely split onto agile two-wheelers to bypass gridlock lanes.")
-                    st.markdown("#### Last-Mile Delivery Agents Network Ledger:")
-                    for runner in match_found["child_trips"]:
-                        st.markdown(f"* **{runner['runner']}** | Current State: `{runner['status']}` Location: *{runner['loc']}*")
-                else:
-                    status = match_found["status"]
-                    if status == "Stuck at Gate Queue":
-                        st.error(f"🚨 **Trip Status: Delayed at Terminal Gate Entry**")
-                        estimated_wait = match_found.get('gate_queue', 12) * 15
-                        st.metric(label="Estimated Gate Delay Countdown", value=f"{estimated_wait} Mins")
-                    else:
-                        if status == "Assigned": st.progress(25, text="📦 Step 1: Booking verified.")
-                        elif status == "Picked Up": st.progress(50, text="🚜 Step 2: Consignment loaded at source.")
-                        elif status == "In Transit": st.progress(75, text="🚚 Step 3: Vehicle en route on Chennai highway network.")
-                        elif status == "Delivered": st.progress(100, text="🏁 Step 4: Consignment Delivered.")
-            else:
-                st.error("Invalid tracking reference. Please verify the ID code and try again.")
-    
-    with col_map:
-        st.markdown("### Satellite Live Transit Mapping Map")
-        m_cust = create_satellite_map([13.0827, 80.2707], zoom=11)
-        
-        if search_id and 'match_found' in locals() and match_found:
-            p_coord = HUB_COORDINATES["koyambedu"]
-            d_coord = HUB_COORDINATES["tambaram"]
-            
-            for key in HUB_COORDINATES:
-                if key in match_found["pickup"].lower(): p_coord = HUB_COORDINATES[key]
-                if key in match_found["destination"].lower(): d_coord = HUB_COORDINATES[key]
-                
-            line_color = "orange" if match_found["status"] == "Stuck at Gate Queue" else ("cyan" if match_found.get("is_split") else "magenta")
-            
-            folium.PolyLine(locations=[p_coord, d_coord], color=line_color, weight=5, opacity=0.8).add_to(m_cust)
-            folium.Marker(p_coord, popup="SOURCE HUB", icon=folium.Icon(color='green')).add_to(m_cust)
-            folium.Marker(d_coord, popup="FINAL DROP ZONE", icon=folium.Icon(color='blue')).add_to(m_cust)
-
-        st_folium(m_cust, width="100%", height=450, key="cust_map", returned_objects=[])
+                            if "nagar" in dest_clean: loc_name = "T. Nagar (Alley 1)"
+                            elif "sowcarpet" in dest_clean: loc_name =
