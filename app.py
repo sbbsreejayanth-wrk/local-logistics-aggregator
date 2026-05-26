@@ -86,14 +86,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 default_operators = [
-    {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 850, "status": "Available", "rate_per_km": 30},
-    {"id": 2, "name": "Annamalai Local Couriers", "vehicle": "Two-Wheeler", "capacity": 30, "status": "Available", "rate_per_km": 12},
-    {"id": 3, "name": "Koyambedu Market Bulk Transport", "vehicle": "Eicher Pro (Truck)", "capacity": 4000, "status": "Busy", "rate_per_km": 65}
+    {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 850, "status": "Available", "rate_per_km": 30, "wallet_balance": 4500},
+    {"id": 2, "name": "Annamalai Local Couriers", "vehicle": "Two-Wheeler", "capacity": 30, "status": "Available", "rate_per_km": 12, "wallet_balance": 1200},
+    {"id": 3, "name": "Koyambedu Market Bulk Transport", "vehicle": "Eicher Pro (Truck)", "capacity": 4000, "status": "Busy", "rate_per_km": 65, "wallet_balance": 18200}
 ]
 
 if not os.path.exists(DB_FILE):
     initial_data = {
         "operators": default_operators,
+        "producer_wallet": 25000,
         "shipments": [
             {
                 "id": "TRK-CH101",
@@ -107,7 +108,8 @@ if not os.path.exists(DB_FILE):
                 "fare": 720,
                 "gate_queue": 0,
                 "is_split": False,
-                "child_trips": []
+                "child_trips": [],
+                "payment_status": "Paid (In Escrow)"
             }
         ]
     }
@@ -124,12 +126,21 @@ def save_data(data):
 
 data = load_data()
 
-# Clean up older databases on the fly to prevent KeyErrors
+# Clean up older databases on the fly to prevent KeyErrors & support financial data fields
+if "producer_wallet" not in data:
+    data["producer_wallet"] = 25000
+
 for op in data["operators"]:
     if "rate_per_km" not in op:
         op["rate_per_km"] = 12 if "Two-Wheeler" in op["vehicle"] else (30 if "Tata Ace" in op["vehicle"] else 65)
     if "capacity" not in op:
         op["capacity"] = 30 if "Two-Wheeler" in op["vehicle"] else (850 if "Tata Ace" in op["vehicle"] else 4000)
+    if "wallet_balance" not in op:
+        op["wallet_balance"] = 3500
+
+for s in data["shipments"]:
+    if "payment_status" not in s:
+        s["payment_status"] = "Released to Operator" if s["status"] == "Delivered" else "Paid (In Escrow)"
 save_data(data)
 
 # Pre-defined coordinates for demo hubs
@@ -169,6 +180,14 @@ if user_role == "🌾 Producer Portal":
     st.title("🌾 Producer / Trader Dashboard")
     st.subheader("Book Shipments across Chennai & TN Hubs")
     
+    # Financial Overview Subbar
+    c_w1, c_w2 = st.columns(2)
+    with c_w1:
+        st.metric(label="🛡️ Trader Available Prepaid Balance", value=f"₹{data['producer_wallet']:,}")
+    with c_w2:
+        escrow_sum = sum(s["fare"] for s in data["shipments"] if s["payment_status"] == "Paid (In Escrow)")
+        st.metric(label="🔒 Funds Held Secure inside Route Escrow", value=f"₹{escrow_sum:,}")
+        
     col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
     
     with col1:
@@ -187,21 +206,27 @@ if user_role == "🌾 Producer Portal":
                     except:
                         b_pickup, b_dest = "Tambaram Delivery Hub", "Koyambedu Wholesale Market"
                         
-                    shipment_id = f"TRK-BH-{int(datetime.now().timestamp())}"
                     mock_distance = random.randint(15, 30)
                     standard_fare = mock_distance * b_op.get("rate_per_km", 25)
                     discounted_fare = int(standard_fare * 0.70)
                     
-                    new_shipment = {
-                        "id": shipment_id, "cargo": "Discounted Backhaul Produce", "weight": int(b_op["capacity"] * 0.8),
-                        "pickup": b_pickup, "destination": b_dest, "operator": b_op["name"], "status": "Assigned",
-                        "distance": mock_distance, "fare": discounted_fare, "gate_queue": 0, "is_split": False, "child_trips": []
-                    }
-                    data["shipments"].append(new_shipment)
-                    b_op["status"] = "Busy"
-                    save_data(data)
-                    st.success(f"🎉 Backhaul matched successfully! 30% Discount applied. ID: {shipment_id}")
-                    st.rerun()
+                    if data["producer_wallet"] >= discounted_fare:
+                        data["producer_wallet"] -= discounted_fare
+                        shipment_id = f"TRK-BH-{int(datetime.now().timestamp())}"
+                        
+                        new_shipment = {
+                            "id": shipment_id, "cargo": "Discounted Backhaul Produce", "weight": int(b_op["capacity"] * 0.8),
+                            "pickup": b_pickup, "destination": b_dest, "operator": b_op["name"], "status": "Assigned",
+                            "distance": mock_distance, "fare": discounted_fare, "gate_queue": 0, "is_split": False, "child_trips": [],
+                            "payment_status": "Paid (In Escrow)"
+                        }
+                        data["shipments"].append(new_shipment)
+                        b_op["status"] = "Busy"
+                        save_data(data)
+                        st.success(f"🎉 Backhaul matched & Escrow Funded! applied. ID: {shipment_id}")
+                        st.rerun()
+                    else:
+                        st.error("❌ Insufficient prepaid wallet balance to lock backhaul escrow.")
             st.markdown("---")
 
         st.markdown("### Request Transport Match")
@@ -210,28 +235,33 @@ if user_role == "🌾 Producer Portal":
             weight = st.number_input("Total Load Weight (kg)", min_value=1, value=100)
             pickup = st.text_input("Pickup Location in Chennai", placeholder="e.g., Koyambedu, Madhavaram")
             destination = st.text_input("Drop Destination", placeholder="e.g., T. Nagar, Tambaram")
-            submit = st.form_submit_button("Match with Local Operator")
+            submit = st.form_submit_button("Match & Fund Route Escrow")
             
             if submit and cargo and pickup and destination:
                 available_ops = [op for op in data["operators"] if op["status"] == "Available" and op["capacity"] >= weight]
                 
                 if available_ops:
                     best_op = min(available_ops, key=lambda x: x["capacity"])
-                    shipment_id = f"TRK-{int(datetime.now().timestamp())}"
                     mock_distance = random.randint(12, 45)
                     calculated_fare = mock_distance * best_op.get("rate_per_km", 20)
                     
-                    new_shipment = {
-                        "id": shipment_id, "cargo": cargo, "weight": weight, "pickup": pickup, "destination": destination,
-                        "operator": best_op["name"], "status": "Assigned", "distance": mock_distance, "fare": calculated_fare,
-                        "gate_queue": 0, "is_split": False, "child_trips": []
-                    }
-                    data["shipments"].append(new_shipment)
-                    for op in data["operators"]:
-                        if op["name"] == best_op["name"]: op["status"] = "Busy"
-                    save_data(data)
-                    st.success(f"🎉 Matched with {best_op['name']}! ID: {shipment_id}")
-                    st.rerun()
+                    if data["producer_wallet"] >= calculated_fare:
+                        data["producer_wallet"] -= calculated_fare
+                        shipment_id = f"TRK-{int(datetime.now().timestamp())}"
+                        
+                        new_shipment = {
+                            "id": shipment_id, "cargo": cargo, "weight": weight, "pickup": pickup, "destination": destination,
+                            "operator": best_op["name"], "status": "Assigned", "distance": mock_distance, "fare": calculated_fare,
+                            "gate_queue": 0, "is_split": False, "child_trips": [], "payment_status": "Paid (In Escrow)"
+                        }
+                        data["shipments"].append(new_shipment)
+                        for op in data["operators"]:
+                            if op["name"] == best_op["name"]: op["status"] = "Busy"
+                        save_data(data)
+                        st.success(f"🎉 Matched with {best_op['name']} & Escrow Secured! ID: {shipment_id}")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Match found but wallet balance is too low. Required: ₹{calculated_fare}")
 
     with col2:
         st.markdown("### Active Consignment Tracker")
@@ -243,6 +273,7 @@ if user_role == "🌾 Producer Portal":
                     st.write(f"**Route:** {s['pickup']} ➡️ {s['destination']}")
                     st.write(f"**Main Fleet Operator:** {s['operator']}")
                     st.markdown(f"💰 **Bill Amount:** ₹{s.get('fare', 0)}")
+                    st.info(f"💳 **Payment Lifecycle State:** `{s.get('payment_status', 'Paid (In Escrow)')}`")
                     
                     if s.get("is_split"):
                         st.info("⚡ **Multi-Modal Hub Hand-off Active!**")
@@ -271,9 +302,9 @@ elif user_role == "🚛 Operator Portal":
     col1, col2, col3 = st.columns([1.1, 1.4, 1.5])
     
     with col1:
-        st.markdown("### Registered Chennai Fleet")
+        st.markdown("### Registered Chennai Fleet & Ledgers")
         df_ops = pd.DataFrame(data["operators"])
-        st.dataframe(df_ops[["name", "vehicle", "status"]], use_container_width=True, hide_index=True)
+        st.dataframe(df_ops[["name", "vehicle", "wallet_balance", "status"]], use_container_width=True, hide_index=True)
 
     with col2:
         st.markdown("### Live Driver Trip Actions")
@@ -283,7 +314,7 @@ elif user_role == "🚛 Operator Portal":
             st.info("No pending deliveries waiting.")
         else:
             for s in active_jobs:
-                st.markdown(f"📦 **{s['cargo']}** (To: {s['destination']})")
+                st.markdown(f"📦 **{s['cargo']}** (To: {s['destination']}) | Escrow Value: **₹{s.get('fare', 0)}**")
                 current_state = s["status"]
                 
                 if not s.get("is_split"):
@@ -313,30 +344,42 @@ elif user_role == "🚛 Operator Portal":
                             ]
                             save_data(data); st.rerun()
                             
-                        if st.button(f"✅ Dropoff & Publish Empty Backhaul Discount (ID: {s['id']})", key=f"bh_pub_{s['id']}", use_container_width=True):
+                        if st.button(f"✅ Dropoff & Disburse Backhaul Earnings (ID: {s['id']})", key=f"bh_pub_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
+                            s["payment_status"] = "Released to Operator"
                             for op in data["operators"]:
                                 if op["name"] == s["operator"]:
+                                    op["wallet_balance"] += s.get("fare", 0)
                                     op["status"] = f"Empty Backhaul: {s['destination']} ➡️ {s['pickup']}"
                             save_data(data); st.rerun()
                             
-                        if st.button(f"Complete Dropoff (Standard Release)", key=f"dc_{s['id']}", use_container_width=True):
+                        if st.button(f"Complete Dropoff & Clear Standard Release", key=f"dc_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
+                            s["payment_status"] = "Released to Operator"
                             for op in data["operators"]:
-                                if op["name"] == s["operator"]: op["status"] = "Available"
+                                if op["name"] == s["operator"]: 
+                                    op["wallet_balance"] += s.get("fare", 0)
+                                    op["status"] = "Available"
                             save_data(data); st.rerun()
+
                     elif current_state == "Stuck at Gate Queue":
-                        if st.button(f"✅ Clear Gate Token & Dropoff (ID: {s['id']})", key=f"clr_{s['id']}", use_container_width=True):
+                        if st.button(f"✅ Clear Gate Token & Disburse Funds (ID: {s['id']})", key=f"clr_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"; s["gate_queue"] = 0
+                            s["payment_status"] = "Released to Operator"
                             for op in data["operators"]:
-                                if op["name"] == s["operator"]: op["status"] = "Available"
+                                if op["name"] == s["operator"]: 
+                                    op["wallet_balance"] += s.get("fare", 0)
+                                    op["status"] = "Available"
                             save_data(data); st.rerun()
                 else:
                     st.success("⚡ Split Flow Active: Managing Bike Fleet")
-                    if st.button(f"🏁 Finalize All Bike Closures (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
+                    if st.button(f"🏁 Finalize All Bike Closures & Release Payout (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
                         s["status"] = "Delivered"
+                        s["payment_status"] = "Released to Operator"
                         for op in data["operators"]:
-                            if op["name"] == s["operator"]: op["status"] = "Available"
+                            if op["name"] == s["operator"]: 
+                                op["wallet_balance"] += s.get("fare", 0)
+                                op["status"] = "Available"
                         save_data(data); st.rerun()
 
     with col3:
@@ -371,7 +414,15 @@ elif user_role == "📦 Consumer Tracking":
             match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
             if match_found:
                 st.success(f"Consignment Records Found: **{match_found['cargo']}**")
+                
+                # Payment cleared tracking header card component
+                if match_found.get("payment_status") == "Released to Operator":
+                    st.info("🟢 **Financial Audit Clearance Ledger:** Freight charges settled and disbursed out to operator wallet.")
+                else:
+                    st.warning("🟡 **Financial Audit Clearance Ledger:** Delivery charges secured safely inside system escrow hold.")
+                    
                 st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
+                st.write(f"**Invoiced Transport Cost:** ₹{match_found.get('fare', 0)}")
                 
                 if match_found.get("is_split"):
                     st.info("⚡ **Congested Zone Action Protocol:** Your cargo safely bypassed urban gridlock lines via multi-modal runners.")
@@ -385,10 +436,10 @@ elif user_role == "📦 Consumer Tracking":
                         estimated_wait = match_found.get('gate_queue', 12) * 15
                         st.metric(label="Estimated Gate Delay Countdown", value=f"{estimated_wait} Mins")
                     else:
-                        if status == "Assigned": st.progress(25, text="📦 Step 1: Booking verified.")
-                        elif status == "Picked Up": st.progress(50, text="🚜 Step 2: Consignment loaded.")
-                        elif status == "In Transit": st.progress(75, text="🚚 Step 3: En route on Chennai network.")
-                        elif status == "Delivered": st.progress(100, text="🏁 Step 4: Consignment Delivered.")
+                        if status == "Assigned": st.progress(25, text="📦 Step 1/4: Booking verified & Escrow Funded.")
+                        elif status == "Picked Up": st.progress(50, text="🚜 Step 2/4: Consignment loaded.")
+                        elif status == "In Transit": st.progress(75, text="🚚 Step 3/4: En route on Chennai network.")
+                        elif status == "Delivered": st.progress(100, text="🏁 Step 4/4: Consignment Delivered & Escrow Settled.")
             else:
                 st.error("Invalid tracking reference. Please verify the ID code.")
     
