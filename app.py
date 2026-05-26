@@ -11,13 +11,36 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Chennai Logistics Aggregator", layout="wide")
 DB_FILE = "logistics_db.json"
 
-# --- 🚀 CUSTOM BRANDING DESIGN & BACKGROUND CSS ---
+# --- 🚀 CUSTOM BRANDING DESIGN & TEXT LIGHTING CSS ---
 st.markdown("""
     <style>
         /* Main background color override */
         .stApp {
             background-color: #0d1117;
-            color: #ecf2f8;
+        }
+        
+        /* Force ALL standard body text, paragraph text, and block text to be bright */
+        .stApp, .stMarkdown, p, span, div, .stText {
+            color: #ecf2f8 !important;
+        }
+        
+        /* Force Form Input Labels and Headers to be highly visible */
+        label, [data-testid="stWidgetLabel"] p {
+            color: #ecf2f8 !important;
+            font-weight: 600 !important;
+        }
+        
+        /* Keep titles and section headers locked to the glowing neon theme */
+        h1, h2, h3, [data-testid="stHeader"] {
+            color: #00FFCC !important;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+        }
+        
+        /* Custom Styling for Dataframes / Tables so data text isn't hidden */
+        .stDataFrame div, table, th, td, [data-testid="stTable"] {
+            color: #ecf2f8 !important;
+            background-color: #161b22 !important;
         }
         
         /* Custom Styling for Streamlit Expander Cards */
@@ -36,18 +59,14 @@ st.markdown("""
             border-radius: 10px;
             box-shadow: 0px 4px 12px rgba(0, 255, 204, 0.05);
         }
+        div[data-testid="stMetricBlock"] [data-testid="stMetricLabel"] p {
+            color: #8b949e !important;
+        }
         
         /* Sidebar Styling Override */
         section[data-testid="stSidebar"] {
             background-color: #161b22 !important;
             border-right: 1px solid #30363d;
-        }
-        
-        /* Titles and Highlight Headers */
-        h1, h2, h3 {
-            color: #00FFCC !important;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: 700;
         }
         
         /* Buttons design */
