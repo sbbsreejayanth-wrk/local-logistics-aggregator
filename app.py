@@ -11,13 +11,16 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Chennai Logistics Aggregator", layout="wide")
 DB_FILE = "logistics_db.json"
 
+# Fresh fallback default data structure
+default_operators = [
+    {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 850, "status": "Available", "rate_per_km": 30},
+    {"id": 2, "name": "Annamalai Local Couriers", "vehicle": "Two-Wheeler", "capacity": 30, "status": "Available", "rate_per_km": 12},
+    {"id": 3, "name": "Koyambedu Market Bulk Transport", "vehicle": "Eicher Pro (Truck)", "capacity": 4000, "status": "Busy", "rate_per_km": 65}
+]
+
 if not os.path.exists(DB_FILE):
     initial_data = {
-        "operators": [
-            {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 850, "status": "Available", "rate_per_km": 30},
-            {"id": 2, "name": "Annamalai Local Couriers", "vehicle": "Two-Wheeler", "capacity": 30, "status": "Available", "rate_per_km": 12},
-            {"id": 3, "name": "Koyambedu Market Bulk Transport", "vehicle": "Eicher Pro (Truck)", "capacity": 4000, "status": "Busy", "rate_per_km": 65}
-        ],
+        "operators": default_operators,
         "shipments": [
             {
                 "id": "TRK-CH101",
@@ -44,6 +47,16 @@ def save_data(data):
         json.dump(data, f, indent=4)
 
 data = load_data()
+
+# Clean up older databases on the fly to prevent KeyErrors
+for op in data["operators"]:
+    if "rate_per_km" not in op:
+        if "Two-Wheeler" in op["vehicle"]:
+            op["rate_per_km"] = 12
+        elif "Tata Ace" in op["vehicle"]:
+            op["rate_per_km"] = 30
+        else:
+            op["rate_per_km"] = 65
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("🚚 Chennai Logistics Hub")
@@ -73,8 +86,7 @@ if user_role == "🌾 Producer Portal":
                     best_op = min(available_ops, key=lambda x: x["capacity"])
                     shipment_id = f"TRK-{int(datetime.now().timestamp())}"
                     
-                    # --- SIMPLE FARE CALCULATOR ENGINE ---
-                    mock_distance = random.randint(12, 45)  # Simulates KM distance across Chennai corridors
+                    mock_distance = random.randint(12, 45)
                     calculated_fare = mock_distance * best_op.get("rate_per_km", 20)
                     
                     new_shipment = {
@@ -108,10 +120,11 @@ if user_role == "🌾 Producer Portal":
                     st.write(f"**Route:** {s['pickup']} ➡️ {s['destination']}")
                     st.write(f"**Assigned Driver:** {s['operator']}")
                     
-                    # Display the newly added fare details in a neat invoice view
                     st.markdown("---")
-                    st.markdown(f"📊 **Trip Matrix:** {s.get('distance', 20)} km @ ₹{s.get('fare', 0) // s.get('distance', 1)}/km")
-                    st.markdown(f"💰 **Total Estimated Bill:** ### ₹{s.get('fare', 0)}")
+                    dist = s.get('distance', 24)
+                    fare = s.get('fare', 720)
+                    st.markdown(f"📊 **Trip Matrix:** {dist} km @ ₹{fare // dist}/km")
+                    st.markdown(f"💰 **Total Estimated Bill:** ### ₹{fare}")
                     st.markdown("---")
                     
                     status = s["status"]
@@ -139,8 +152,6 @@ elif user_role == "🚛 Operator Portal":
             new_name = st.text_input("Driver/Agency Name")
             new_veh = st.selectbox("Vehicle Type", ["Two-Wheeler", "Tata Ace (Van)", "Eicher Pro (Truck)", "Container"])
             new_cap = st.number_input("Payload Limit (kg)", min_value=10, max_value=15000, value=1000)
-            
-            # Simple rate configuration row
             new_rate = st.number_input("Freight Rate (₹ per KM)", min_value=5, max_value=200, value=25)
             
             if st.button("Bring Online to Network"):
@@ -203,7 +214,7 @@ elif user_role == "📦 Consumer Tracking":
                 st.success(f"Consignment Records Found: **{match_found['cargo']}**")
                 st.write(f"**Carrier Assigned:** {match_found['operator']}")
                 st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
-                st.write(f"**Total Fare Charge:** ₹{match_found.get('fare', 0)}")
+                st.write(f"**Total Fare Charge:** ₹{match_found.get('fare', 720)}")
                 
                 status = match_found["status"]
                 if status == "Assigned":
