@@ -20,14 +20,14 @@ st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-        /* Global Theme Overrides with Hidden Interactive Layer Behind Content */
-        .stApp {
+        /* Global Theme Overrides - Forcing transparency across structural containers */
+        .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
             background: transparent !important;
             font-family: 'Inter', sans-serif !important;
         }
         
-        /* Force highly visible typography colors */
-        .stApp, .stMarkdown, p, span, div, .stText {
+        /* Force highly visible typography colors over the dark background */
+        .stApp, .stMarkdown, p, span, div, .stText, label {
             color: #f3f4f6 !important;
         }
         
@@ -52,19 +52,19 @@ st.markdown("""
 
         /* Glassmorphic Data Cards & Widgets */
         div[data-testid="stMetricBlock"], .streamlit-expanderHeader, div.stForm, .premium-card {
-            background: rgba(11, 15, 23, 0.75) !important;
+            background: rgba(11, 15, 23, 0.8) !important;
             backdrop-filter: blur(20px) !important;
             -webkit-backdrop-filter: blur(20px) !important;
             border: 1px solid rgba(0, 255, 204, 0.15) !important;
             border-radius: 12px !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6) !important;
             padding: 24px !important;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         
         div[data-testid="stMetricBlock"]:hover, .premium-card:hover {
             border-color: rgba(0, 255, 204, 0.4) !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.15) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.2) !important;
             transform: translateY(-3px);
         }
 
@@ -148,7 +148,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- JAVASCRIPT GLOBAL BACKGROUND ANIMATION CANVAS ---
-# This injects a particle engine tracking connected network arrays underneath the app UI layers.
 st.components.v1.html("""
     <canvas id="networkCanvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; background:#0b0f17;"></canvas>
     <script>
@@ -167,9 +166,9 @@ st.components.v1.html("""
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.4;
-                this.vy = (Math.random() - 0.5) * 0.4;
-                this.radius = Math.random() * 2 + 1;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.radius = Math.random() * 2 + 1.5;
             }
             update() {
                 this.x += this.vx;
@@ -180,19 +179,19 @@ st.components.v1.html("""
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 255, 204, 0.4)';
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.6)';
                 ctx.fill();
             }
         }
 
-        for (let i = 0; i < 90; i++) {
+        for (let i = 0; i < 100; i++) {
             particles.push(new Particle());
         }
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw background matrix radial sweep
+            // Core space depth gradient
             let gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
             gradient.addColorStop(0, '#111827');
             gradient.addColorStop(1, '#070a10');
@@ -208,12 +207,12 @@ st.components.v1.html("""
                     const dy = particles[i].y - particles[j].y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist < 130) {
+                    if (dist < 150) {
                         ctx.beginPath();
                         ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - (dist / 130) * 0.15})`;
-                        ctx.lineWidth = 0.5;
+                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - (dist / 150) * 0.25})`;
+                        ctx.lineWidth = 0.6;
                         ctx.stroke();
                     }
                 }
