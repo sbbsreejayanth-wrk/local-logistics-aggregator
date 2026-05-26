@@ -50,23 +50,12 @@ def save_data(data):
 
 data = load_data()
 
-# --- 🛠️ ROBUST DATABASE PATCH ENGINE (FIXES KEYERRORS) ---
-# This ensures older records in your JSON file automatically gain missing columns
+# Robust database patch engine to clean up schema mismatch
 for op in data["operators"]:
     if "rate_per_km" not in op:
-        if "Two-Wheeler" in op["vehicle"]:
-            op["rate_per_km"] = 12
-        elif "Tata Ace" in op["vehicle"]:
-            op["rate_per_km"] = 30
-        else:
-            op["rate_per_km"] = 65
+        op["rate_per_km"] = 12 if "Two-Wheeler" in op["vehicle"] else (30 if "Tata Ace" in op["vehicle"] else 65)
     if "capacity" not in op:
-        if "Two-Wheeler" in op["vehicle"]:
-            op["capacity"] = 30
-        elif "Tata Ace" in op["vehicle"]:
-            op["capacity"] = 850
-        else:
-            op["capacity"] = 4000
+        op["capacity"] = 30 if "Two-Wheeler" in op["vehicle"] else (850 if "Tata Ace" in op["vehicle"] else 4000)
 save_data(data)
 
 # Pre-defined coordinates for demo hubs
@@ -109,12 +98,47 @@ if user_role == "🌾 Producer Portal":
     col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
     
     with col1:
+        # Check if there are any operators actively offering discounted return empty backhauls
+        active_backhauls = [op for op in data["operators"] if op["status"].startswith("Empty Backhaul:")]
+        
+        if active_backhauls:
+            st.markdown("### 🌟 Smart Green-Discount Matches Available!")
+            for b_op in active_backhauls:
+                route_info = b_op["status"].replace("Empty Backhaul:", "")
+                st.warning(f"🚛 {b_op['name']} heading back via route: **{route_info}**")
+                if st.button(f"Claim 30% Backhaul Discount with {b_op['name'].split()[0]}", key=f"bh_claim_{b_op['id']}"):
+                    # Parse out the reverse pickup and drop locations
+                    try:
+                        b_pickup, b_dest = route_info.split("➡️")
+                        b_pickup = b_pickup.strip()
+                        b_dest = b_dest.strip()
+                    except:
+                        b_pickup, b_dest = "Tambaram Delivery Hub", "Koyambedu Wholesale Market"
+                        
+                    shipment_id = f"TRK-BH-{int(datetime.now().timestamp())}"
+                    mock_distance = random.randint(15, 30)
+                    # Apply a sharp 30% discount automatically
+                    standard_fare = mock_distance * b_op.get("rate_per_km", 25)
+                    discounted_fare = int(standard_fare * 0.70)
+                    
+                    new_shipment = {
+                        "id": shipment_id, "cargo": "Discounted Backhaul Produce", "weight": int(b_op["capacity"] * 0.8),
+                        "pickup": b_pickup, "destination": b_dest, "operator": b_op["name"], "status": "Assigned",
+                        "distance": mock_distance, "fare": discounted_fare, "gate_queue": 0, "is_split": False, "child_trips": []
+                    }
+                    data["shipments"].append(new_shipment)
+                    b_op["status"] = "Busy"
+                    save_data(data)
+                    st.success(f"🎉 Backhaul matched successfully! 30% Discount applied. ID: {shipment_id}")
+                    st.rerun()
+            st.markdown("---")
+
         st.markdown("### Request Transport Match")
         with st.form("delivery_form", clear_on_submit=True):
             cargo = st.text_input("Goods / Produce Type", placeholder="e.g., Mangoes, Rice bags")
             weight = st.number_input("Total Load Weight (kg)", min_value=1, value=100)
             pickup = st.text_input("Pickup Location in Chennai", placeholder="e.g., Koyambedu, Madhavaram")
-            destination = st.text_input("Drop Destination (Type 'T. Nagar' or 'Sowcarpet' for split demo)", placeholder="e.g., T. Nagar, Tambaram")
+            destination = st.text_input("Drop Destination", placeholder="e.g., T. Nagar, Tambaram")
             submit = st.form_submit_button("Match with Local Operator")
             
             if submit and cargo and pickup and destination:
@@ -123,7 +147,6 @@ if user_role == "🌾 Producer Portal":
                 if available_ops:
                     best_op = min(available_ops, key=lambda x: x["capacity"])
                     shipment_id = f"TRK-{int(datetime.now().timestamp())}"
-                    
                     mock_distance = random.randint(12, 45)
                     calculated_fare = mock_distance * best_op.get("rate_per_km", 20)
                     
@@ -148,6 +171,7 @@ if user_role == "🌾 Producer Portal":
                 with st.expander(f"📦 {s['cargo']} -> ID: {s['id']}"):
                     st.write(f"**Route:** {s['pickup']} ➡️ {s['destination']}")
                     st.write(f"**Main Fleet Operator:** {s['operator']}")
+                    st.markdown(f"💰 **Bill Amount:** ₹{s.get('fare', 0)}")
                     
                     if s.get("is_split"):
                         st.info("⚡ **Multi-Modal Hub Hand-off Active!**")
@@ -178,7 +202,7 @@ elif user_role == "🚛 Operator Portal":
     with col1:
         st.markdown("### Registered Chennai Fleet")
         df_ops = pd.DataFrame(data["operators"])
-        st.dataframe(df_ops[["name", "vehicle", "capacity", "status", "rate_per_km"]], use_container_width=True, hide_index=True)
+        st.dataframe(df_ops[["name", "vehicle", "status"]], use_container_width=True, hide_index=True)
 
     with col2:
         st.markdown("### Live Driver Trip Actions")
@@ -202,18 +226,14 @@ elif user_role == "🚛 Operator Portal":
                         if st.button(f"🚨 Report Stuck at Gate Queue (ID: {s['id']})", key=f"stk_{s['id']}", use_container_width=True):
                             s["status"] = "Stuck at Gate Queue"; s["gate_queue"] = random.randint(8, 22); save_data(data); st.rerun()
                         
-                        # --- FIXED CONDITIONALS ON SEPARATE LINES ---
                         if st.button(f"⚡ Split Consignment to 2-Wheelers", key=f"splt_{s['id']}", use_container_width=True):
                             s["is_split"] = True
                             s["status"] = "Split Delivery Last-Mile"
                             dest_clean = s["destination"].lower()
                             
-                            if "nagar" in dest_clean:
-                                loc_name = "T. Nagar (Alley 1)"
-                            elif "sowcarpet" in dest_clean:
-                                loc_name = "Sowcarpet (Alley 2)"
-                            else:
-                                loc_name = "Parrys (Alley 3)"
+                            if "nagar" in dest_clean: loc_name = "T. Nagar (Alley 1)"
+                            elif "sowcarpet" in dest_clean: loc_name = "Sowcarpet (Alley 2)"
+                            else: loc_name = "Parrys (Alley 3)"
                             
                             s["child_trips"] = [
                                 {"runner": "Chennai Bike Agent A", "status": "Out for Delivery", "loc": loc_name},
@@ -222,7 +242,17 @@ elif user_role == "🚛 Operator Portal":
                             ]
                             save_data(data); st.rerun()
                             
-                        if st.button(f"Complete Dropoff (ID: {s['id']})", key=f"dc_{s['id']}", use_container_width=True):
+                        # NEW OPTION: CLOSE OUT THE CURRENT TRIP AND TRIGGER EMPTY BACKHAUL STATE Immediately
+                        if st.button(f"✅ Dropoff & Publish Empty Backhaul Discount (ID: {s['id']})", key=f"bh_pub_{s['id']}", use_container_width=True):
+                            s["status"] = "Delivered"
+                            for op in data["operators"]:
+                                if op["name"] == s["operator"]:
+                                    # Formulate the reverse route path clearly
+                                    op["status"] = f"Empty Backhaul: {s['destination']} ➡️ {s['pickup']}"
+                            save_data(data)
+                            st.rerun()
+                            
+                        if st.button(f"Complete Dropoff (Standard Release)", key=f"dc_{s['id']}", use_container_width=True):
                             s["status"] = "Delivered"
                             for op in data["operators"]:
                                 if op["name"] == s["operator"]: op["status"] = "Available"
