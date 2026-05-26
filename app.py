@@ -12,7 +12,6 @@ st.set_page_config(page_title="NEO-CHENNAI | Autonomous Supply Chain Engine", la
 DB_FILE = "logistics_db.json"
 
 # --- INITIALIZE STATE ENGINE FOR PORTAL ROUTING ---
-# Views: "SPLASH" (Corporate Intro), "HOME" (6-Echelon Matrix Grid), "PRODUCER", "SUPPLIER", "WAREHOUSE", "OPERATOR", "MARKET", "CUSTOMER"
 if "current_view" not in st.session_state:
     st.session_state["current_view"] = "SPLASH"
 
@@ -21,9 +20,9 @@ st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-        /* Global Theme Overrides */
+        /* Global Theme Overrides with Hidden Interactive Layer Behind Content */
         .stApp {
-            background: linear-gradient(135deg, #0b0f17 0%, #111827 100%) !important;
+            background: transparent !important;
             font-family: 'Inter', sans-serif !important;
         }
         
@@ -53,19 +52,19 @@ st.markdown("""
 
         /* Glassmorphic Data Cards & Widgets */
         div[data-testid="stMetricBlock"], .streamlit-expanderHeader, div.stForm, .premium-card {
-            background: rgba(22, 30, 49, 0.6) !important;
-            backdrop-filter: blur(12px) !important;
-            -webkit-backdrop-filter: blur(12px) !important;
+            background: rgba(11, 15, 23, 0.75) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
             border: 1px solid rgba(0, 255, 204, 0.15) !important;
             border-radius: 12px !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
             padding: 24px !important;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         
         div[data-testid="stMetricBlock"]:hover, .premium-card:hover {
             border-color: rgba(0, 255, 204, 0.4) !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.1) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 255, 204, 0.15) !important;
             transform: translateY(-3px);
         }
 
@@ -148,6 +147,83 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- JAVASCRIPT GLOBAL BACKGROUND ANIMATION CANVAS ---
+# This injects a particle engine tracking connected network arrays underneath the app UI layers.
+st.components.v1.html("""
+    <canvas id="networkCanvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; background:#0b0f17;"></canvas>
+    <script>
+        const canvas = document.getElementById('networkCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.radius = Math.random() * 2 + 1;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.4)';
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 90; i++) {
+            particles.push(new Particle());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background matrix radial sweep
+            let gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
+            gradient.addColorStop(0, '#111827');
+            gradient.addColorStop(1, '#070a10');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 130) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - (dist / 130) * 0.15})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+""", height=0, width=0)
+
 # --- SYSTEM ECOSYSTEM DATABASE LAYER ---
 default_operators = [
     {"id": 1, "name": "Muthu Chennai Fast Freight", "vehicle": "Tata Ace (Van)", "capacity": 1000, "status": "Available", "rate_per_km": 30, "wallet_balance": 4500},
@@ -216,14 +292,13 @@ def render_navigation_header(title, return_target="HOME"):
     st.markdown("---")
 
 # ==========================================
-# 🌌 NEW SCENE: CORPORATE SPLASH DECK
+# 🌌 CORPORATE SPLASH DECK
 # ==========================================
 if st.session_state["current_view"] == "SPLASH":
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align:center; font-size:3.5rem; margin-bottom:10px;'>⚡ NEO-CHENNAI OPERATIONS LABS</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#00FFCC; font-family:\"JetBrains Mono\"; font-size:1.1rem; letter-spacing: 2px; margin-bottom:50px;'>Next-Gen Autonomous Supply Chain Infrastructure</p>", unsafe_allow_html=True)
     
-    # Core Corporate Profile Section Layout
     col_left, col_right = st.columns([1.1, 0.9])
     
     with col_left:
