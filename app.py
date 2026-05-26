@@ -129,14 +129,23 @@ st.markdown("""
             border-color: #00FFCC !important;
         }
 
+        /* Clean Tab Navigation Styling */
+        div[data-testid="stTabBar"] button {
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.9rem !important;
+            color: #9ca3af !important;
+            background: transparent !important;
+            border: none !important;
+        }
+        div[data-testid="stTabBar"] button[aria-selected="true"] {
+            color: #00FFCC !important;
+            border-bottom: 2px solid #00FFCC !important;
+        }
+
         /* Left Hand Navigation Rail styling */
         section[data-testid="stSidebar"] {
             background: #070a10 !important;
             border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
-        }
-        section[data-testid="stSidebar"] .stRadio > label {
-            color: #00FFCC !important;
-            font-family: 'JetBrains Mono', monospace;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -257,6 +266,7 @@ if user_role == "🌾 Producer Portal":
                         })
                         b_op["status"] = "Busy"
                         save_data(data)
+                        st.toast("Backhaul discount matched successfully!", icon="🎉")
                         st.rerun()
 
         st.markdown("### NEW SHIPMENT DISPATCH")
@@ -282,6 +292,7 @@ if user_role == "🌾 Producer Portal":
                         for o in data["operators"]:
                             if o["name"] == best_op["name"]: o["status"] = "Busy"
                         save_data(data)
+                        st.toast("Escrow contract initialized & locked.", icon="🔒")
                         st.rerun()
 
     with col2:
@@ -322,6 +333,7 @@ elif user_role == "🚛 Operator Portal":
                 if tk["status"] == "Open" and st.button("Flag as Settled", key=f"res_{tk['timestamp']}"):
                     tk["status"] = "Resolved"
                     save_data(data)
+                    st.toast("Support conflict set to resolved.", icon="✅")
                     st.rerun()
 
     with col2:
@@ -348,13 +360,13 @@ elif user_role == "🚛 Operator Portal":
                         s["status"] = "Delivered"; s["payment_status"] = "Released to Operator"
                         for o in data["operators"]:
                             if o["name"] == s["operator"]: o["wallet_balance"] += s.get("fare", 0); o["status"] = "Available"
-                        save_data(data); st.rerun()
+                        save_data(data); st.toast("Cargo handoff verified. Funds pushed.", icon="💸"); st.rerun()
             else:
                 if st.button(f"🏁 Complete Split Cycle Ledger (ID: {s['id']})", key=f"fnbk_{s['id']}"):
                     s["status"] = "Delivered"; s["payment_status"] = "Released to Operator"
                     for o in data["operators"]:
                         if o["name"] == s["operator"]: o["wallet_balance"] += s.get("fare", 0); o["status"] = "Available"
-                    save_data(data); st.rerun()
+                    save_data(data); st.toast("Multi-trip flow settled.", icon="🏁"); st.rerun()
 
     with col3:
         st.markdown("### ACTIVE ROUTE DISPATCH VECTOR")
@@ -392,7 +404,7 @@ elif user_role == "📦 Consumer Tracking":
         m_cust = create_satellite_map([13.0827, 80.2707], zoom=11)
         st_folium(m_cust, width="100%", height=500, key="cust_map", returned_objects=[])
 
-# --- 4. CUSTOMER EXPERIENCE (CX) & PAYMENT PORTAL ---
+# --- 4. CUSTOMER EXPERIENCE (CX) & PAYMENT PORTAL (MODULAR UX RESTRICTION) ---
 elif user_role == "💬 Customer Experience & Payments":
     st.title("💬 CUSTOMER INTELLIGENCE & TRANSACTION PORTAL")
     
@@ -405,31 +417,52 @@ elif user_role == "💬 Customer Experience & Payments":
         st.metric(label="📈 TOTAL OVERALL FREIGHT TURNOVER", value=f"₹{total_spent:,}")
         
     st.markdown("<br>", unsafe_allow_html=True)
-    cx_col1, cx_col2 = st.columns([1.1, 0.9])
     
-    with cx_col1:
-        # --- NEW PREMIUM PAYMENT TERMINAL SUB-SECTION ---
-        st.markdown("### 💳 SECURE TOP-UP WALLET HUB")
-        with st.form("wallet_topup_form", clear_on_submit=True):
-            st.markdown("<p style='color:#00FFCC; font-size:0.85rem; font-family:\"JetBrains Mono\"'>MOCK INSTANT FUND GATEWAY</p>", unsafe_allow_html=True)
-            topup_amount = st.number_input("Top-up Amount (INR)", min_value=100, max_value=100000, value=5000, step=500)
-            
-            pay_c1, pay_c2 = st.columns(2)
-            with pay_c1:
-                card_num = st.text_input("Debit / Corporate Card Number", value="•••• •••• •••• 4242")
-            with pay_c2:
-                card_expiry = st.text_input("Expiry Date / CVV", value="12/29 | •••")
+    # --- UI/UX UPGRADE: COMPONENT STRUCTURE BY ARCHITECTURAL TABS ---
+    tab_billing, tab_feedback, tab_disputes = st.tabs([
+        "💳 Balance Top-up & Ledger Sheets", 
+        "⭐ Fleet Performance Evaluation", 
+        "🎫 Service Escalation Desk"
+    ])
+    
+    with tab_billing:
+        cx_col1, cx_col2 = st.columns([1.1, 0.9])
+        with cx_col1:
+            st.markdown("### Secure Wallet Top-Up Gateway")
+            with st.form("wallet_topup_form", clear_on_submit=True):
+                st.markdown("<p style='color:#00FFCC; font-size:0.85rem; font-family:\"JetBrains Mono\"'>MOCK SECURED ENDPOINT</p>", unsafe_allow_html=True)
+                topup_amount = st.number_input("Top-up Amount (INR)", min_value=100, max_value=100000, value=5000, step=500)
                 
-            if st.form_submit_button("Authorize Digital Fund Transfer"):
-                data["producer_wallet"] += int(topup_amount)
-                save_data(data)
-                st.success(f"🎉 Gateway Settled! Added ₹{topup_amount:,} directly to your corporate balance storage.")
-                st.rerun()
-                
-        st.markdown("<br>### ⭐ DISPATCH QUALITY EVALUATION", unsafe_allow_html=True)
+                pay_c1, pay_c2 = st.columns(2)
+                with pay_c1:
+                    card_num = st.text_input("Debit / Corporate Card Number", value="•••• •••• •••• 4242")
+                with pay_c2:
+                    card_expiry = st.text_input("Expiry Date / CVV", value="12/29 | •••")
+                    
+                if st.form_submit_button("Authorize Digital Fund Transfer"):
+                    data["producer_wallet"] += int(topup_amount)
+                    save_data(data)
+                    st.toast(f"Wallet successfully charged with ₹{topup_amount:,}", icon="💳")
+                    st.rerun()
+                    
+        with cx_col2:
+            st.markdown("### Active System Invoices")
+            if not data["shipments"]:
+                st.info("No active invoice chains detected.")
+            else:
+                for s in reversed(data["shipments"]):
+                    inv_status = "🟢 SETTLED" if s["status"] == "Delivered" else "🔒 ESCROW HOLD"
+                    with st.expander(f"🧾 INV-{s['id']} [{inv_status}]"):
+                        base_fare = s.get("fare", 0)
+                        platform_cut = int(base_fare * 0.05)
+                        st.markdown(f"**Gross Invoice Value:** `₹{base_fare:,}`")
+                        st.caption(f"Platform Processing Overhead: ₹{platform_cut:,}")
+
+    with tab_feedback:
+        st.markdown("### Fleet Performance Indices")
         delivered_shipments = [s for s in data["shipments"] if s["status"] == "Delivered"]
         if not delivered_shipments: 
-            st.info("No archive data sets verified to populate telemetry updates.")
+            st.info("No completed runs verified to apply evaluation metrics.")
         else:
             shipment_options = {f"📦 {s['cargo']} (ID: {s['id']})": s for s in delivered_shipments}
             target_shipment = shipment_options[st.selectbox("Select Finished Manifest Target:", list(shipment_options.keys()))]
@@ -439,41 +472,17 @@ elif user_role == "💬 Customer Experience & Payments":
                 fb = st.text_area("Log Asset Interface Feedback Matrix", placeholder="e.g., Flawless handoff timing...")
                 if st.form_submit_button("Settle Performance Metrics"):
                     target_shipment["rating"] = rating; target_shipment["feedback"] = fb; save_data(data)
-                    st.success("Performance rating safely parsed into database layer.")
-        
-        st.markdown("<br>### 🎫 DEPLOY INCIDENT DISPUTE ESCALATION", unsafe_allow_html=True)
+                    st.toast("Operator score updated.", icon="⭐")
+                    st.rerun()
+
+    with tab_disputes:
+        st.markdown("### System Compliance Escalations")
         with st.form("ticket_form", clear_on_submit=True):
             t_id = st.text_input("Linked Manifest Reference Target ID", placeholder="e.g., TRK-CH101")
             i_type = st.selectbox("Dispute Class Vector", ["Delayed Delivery Network State", "Damaged Physical Cargo", "Operator Ledger Inconsistency"])
             i_desc = st.text_area("Provide Comprehensive Incident Logs")
             if st.form_submit_button("Transmit Ticket to Dispatch Desk") and t_id and i_desc:
                 data["tickets"].append({"shipment_id": t_id, "type": i_type, "issue_text": i_desc, "status": "Open", "timestamp": int(datetime.now().timestamp())})
-                save_data(data); st.success("Incident data broadcast to operator dispatch rails.")
-                
-    with cx_col2:
-        st.markdown("### 🧾 DIGITAL TRANSACTION BILLING REPOSITORY")
-        if not data["shipments"]:
-            st.info("No invoice logs archived yet.")
-        else:
-            for s in reversed(data["shipments"]):
-                inv_status = "🟢 SETTIED" if s["status"] == "Delivered" else "🔒 HELD IN ESCROW"
-                with st.expander(f"🧾 INV-{s['id']} [{inv_status}]"):
-                    st.markdown(f"**Cargo Manifest Detail:** {s['cargo']}")
-                    st.markdown(f"**Route Vectors:** `{s['pickup']}` ➡️ `{s['destination']}`")
-                    st.markdown("---")
-                    
-                    # Programmatic Cost Auditing Breakdown
-                    base_fare = s.get("fare", 0)
-                    platform_cut = int(base_fare * 0.05)
-                    driver_payout = base_fare - platform_cut
-                    
-                    st.markdown(f"• Driver Core Freight Charge: `₹{driver_payout:,}`")
-                    st.markdown(f"• Automated Matching Overhead (5%): `₹{platform_cut:,}`")
-                    st.markdown(f"**Gross Total Cost Charged:** `₹{base_fare:,}`")
-                    st.caption(f"Payment State Lifecycle Indicator: {s.get('payment_status')}")
-
-        st.markdown("<br>### ❔ SYSTEM FUNCTIONAL PROTOCOLS (FAQ)", unsafe_allow_html=True)
-        with st.expander("Why do assets report 'Stuck at Gate Queue'?"):
-            st.write("Major market access corridors like Koyambedu maintain high physical intake friction profiles. The automated scheduling engine maps queue parameters dynamically to predict turnaround times down to the minute.")
-        with st.expander("How does the Escrow Engine lock trader collateral securely?"):
-            st.write("Payments are strictly restricted using programmed holding locks. Operators cannot bypass or route balance reserves into personal clearing nodes until specific terminal validation protocols run on-site.")
+                save_data(data)
+                st.toast("Dispute logged. Operators flagged.", icon="🎫")
+                st.rerun()
