@@ -50,10 +50,24 @@ def save_data(data):
 
 data = load_data()
 
-# Clean up older databases on the fly to prevent KeyErrors
+# --- 🛠️ ROBUST DATABASE PATCH ENGINE (FIXES KEYERRORS) ---
+# This ensures older records in your JSON file automatically gain missing columns
 for op in data["operators"]:
     if "rate_per_km" not in op:
-        op["rate_per_km"] = 12 if "Two-Wheeler" in op["vehicle"] else (30 if "Tata Ace" in op["vehicle"] else 65)
+        if "Two-Wheeler" in op["vehicle"]:
+            op["rate_per_km"] = 12
+        elif "Tata Ace" in op["vehicle"]:
+            op["rate_per_km"] = 30
+        else:
+            op["rate_per_km"] = 65
+    if "capacity" not in op:
+        if "Two-Wheeler" in op["vehicle"]:
+            op["capacity"] = 30
+        elif "Tata Ace" in op["vehicle"]:
+            op["capacity"] = 850
+        else:
+            op["capacity"] = 4000
+save_data(data)
 
 # Pre-defined coordinates for demo hubs
 HUB_COORDINATES = {
@@ -67,32 +81,19 @@ HUB_COORDINATES = {
     "parrys (alley 3)": [13.0945, 80.2891]
 }
 
-# --- 🛰️ ENHANCED HYBRID SATELLITE ENGINE ---
+# --- 🛰️ HYBRID SATELLITE ENGINE ---
 def create_satellite_map(center_coords, zoom=11):
-    # Base Aerospace Satellite Imagery
     sat_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    # Transparent Road & Place Labels Layer (Adds street names over satellite imagery)
     labels_url = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
+    attr = "Esri, Maxar, Earthstar Geographics"
     
-    attr = "Esri, Maxar, Earthstar Geographics, and the GIS User Community"
-    
-    # Initialize Map with Base Imagery
     m = folium.Map(location=center_coords, zoom_start=zoom, tiles=sat_url, attr=attr)
-    
-    # Superimpose the Road Network Layer on top
     folium.TileLayer(tiles=labels_url, attr="Esri Transportation", name="Road Labels", overlay=True, control=False).add_to(m)
     
-    # Add an Operational Logistics Boundary Circle (Geofence ring around Chennai core)
     folium.Circle(
-        location=[13.04, 80.22],
-        radius=12000, # 12 KM radius
-        color="#00FFCC",
-        fill=True,
-        fill_color="#00FFCC",
-        fill_opacity=0.08,
-        popup="Primary Aggregator Operation Ring"
+        location=[13.04, 80.22], radius=12000, color="#00FFCC",
+        fill=True, fill_color="#00FFCC", fill_opacity=0.08, popup="Primary Aggregator Operation Ring"
     ).add_to(m)
-    
     return m
 
 # --- SIDEBAR NAVIGATION ---
@@ -177,7 +178,7 @@ elif user_role == "🚛 Operator Portal":
     with col1:
         st.markdown("### Registered Chennai Fleet")
         df_ops = pd.DataFrame(data["operators"])
-        st.dataframe(df_ops[["name", "vehicle", "status"]], use_container_width=True, hide_index=True)
+        st.dataframe(df_ops[["name", "vehicle", "capacity", "status", "rate_per_km"]], use_container_width=True, hide_index=True)
 
     with col2:
         st.markdown("### Live Driver Trip Actions")
@@ -201,10 +202,114 @@ elif user_role == "🚛 Operator Portal":
                         if st.button(f"🚨 Report Stuck at Gate Queue (ID: {s['id']})", key=f"stk_{s['id']}", use_container_width=True):
                             s["status"] = "Stuck at Gate Queue"; s["gate_queue"] = random.randint(8, 22); save_data(data); st.rerun()
                         
+                        # --- FIXED CONDITIONALS ON SEPARATE LINES ---
                         if st.button(f"⚡ Split Consignment to 2-Wheelers", key=f"splt_{s['id']}", use_container_width=True):
                             s["is_split"] = True
                             s["status"] = "Split Delivery Last-Mile"
                             dest_clean = s["destination"].lower()
                             
-                            if "nagar" in dest_clean: loc_name = "T. Nagar (Alley 1)"
-                            elif "sowcarpet" in dest_clean: loc_name =
+                            if "nagar" in dest_clean:
+                                loc_name = "T. Nagar (Alley 1)"
+                            elif "sowcarpet" in dest_clean:
+                                loc_name = "Sowcarpet (Alley 2)"
+                            else:
+                                loc_name = "Parrys (Alley 3)"
+                            
+                            s["child_trips"] = [
+                                {"runner": "Chennai Bike Agent A", "status": "Out for Delivery", "loc": loc_name},
+                                {"runner": "Chennai Bike Agent B", "status": "Out for Delivery", "loc": loc_name},
+                                {"runner": "Chennai Bike Agent C", "status": "Delivered ✅", "loc": loc_name}
+                            ]
+                            save_data(data); st.rerun()
+                            
+                        if st.button(f"Complete Dropoff (ID: {s['id']})", key=f"dc_{s['id']}", use_container_width=True):
+                            s["status"] = "Delivered"
+                            for op in data["operators"]:
+                                if op["name"] == s["operator"]: op["status"] = "Available"
+                            save_data(data); st.rerun()
+                    elif current_state == "Stuck at Gate Queue":
+                        if st.button(f"✅ Clear Gate Token & Dropoff (ID: {s['id']})", key=f"clr_{s['id']}", use_container_width=True):
+                            s["status"] = "Delivered"; s["gate_queue"] = 0
+                            for op in data["operators"]:
+                                if op["name"] == s["operator"]: op["status"] = "Available"
+                            save_data(data); st.rerun()
+                else:
+                    st.success("⚡ Split Flow Active: Managing Bike Fleet")
+                    if st.button(f"🏁 Finalize All Bike Closures (ID: {s['id']})", key=f"fnbk_{s['id']}", use_container_width=True):
+                        s["status"] = "Delivered"
+                        for op in data["operators"]:
+                            if op["name"] == s["operator"]: op["status"] = "Available"
+                        save_data(data); st.rerun()
+
+    with col3:
+        st.markdown("### 🗺️ Operational Dispatch Console")
+        m_op = create_satellite_map([13.0827, 80.2707], zoom=11)
+        for job in active_jobs:
+            coords = HUB_COORDINATES["koyambedu"]
+            for key in HUB_COORDINATES:
+                if key in job["pickup"].lower() or key in job["destination"].lower(): coords = HUB_COORDINATES[key]
+            
+            if job["status"] == "Stuck at Gate Queue":
+                folium.Circle(location=coords, radius=1200, color="orange", fill=True, fill_color="orange", fill_opacity=0.3).add_to(m_op)
+                icon_color = 'orange'
+            elif job.get("is_split"):
+                icon_color = 'purple'
+            else:
+                icon_color = 'red'
+                
+            folium.Marker(coords, popup=f"{job['cargo']} ({job['status']})", icon=folium.Icon(color=icon_color)).add_to(m_op)
+        st_folium(m_op, width="100%", height=450, key="op_map", returned_objects=[])
+
+# --- 3. CONSUMER TRACKING ---
+elif user_role == "📦 Consumer Tracking":
+    st.title("📦 Consignment Quick Status Portal")
+    col_input, col_map = st.columns([1, 1])
+    
+    with col_input:
+        st.markdown("### Enter your Tracking ID:")
+        search_id = st.text_input("Tracking Reference Number", placeholder="e.g., TRK-CH101")
+        
+        if search_id:
+            match_found = next((s for s in data["shipments"] if s["id"] == search_id), None)
+            if match_found:
+                st.success(f"Consignment Records Found: **{match_found['cargo']}**")
+                st.write(f"**Route Manifest:** {match_found['pickup']} to {match_found['destination']}")
+                
+                if match_found.get("is_split"):
+                    st.info("⚡ **Congested Zone Action Protocol:** Your cargo safely bypassed urban gridlock lines via multi-modal runners.")
+                    st.markdown("#### Last-Mile Delivery Agents Ledger:")
+                    for runner in match_found["child_trips"]:
+                        st.markdown(f"* **{runner['runner']}** | State: `{runner['status']}` (*{runner['loc']}*)")
+                else:
+                    status = match_found["status"]
+                    if status == "Stuck at Gate Queue":
+                        st.error(f"🚨 **Trip Status: Delayed at Terminal Gate Entry**")
+                        estimated_wait = match_found.get('gate_queue', 12) * 15
+                        st.metric(label="Estimated Gate Delay Countdown", value=f"{estimated_wait} Mins")
+                    else:
+                        if status == "Assigned": st.progress(25, text="📦 Step 1: Booking verified.")
+                        elif status == "Picked Up": st.progress(50, text="🚜 Step 2: Consignment loaded.")
+                        elif status == "In Transit": st.progress(75, text="🚚 Step 3: En route on Chennai network.")
+                        elif status == "Delivered": st.progress(100, text="🏁 Step 4: Consignment Delivered.")
+            else:
+                st.error("Invalid tracking reference. Please verify the ID code.")
+    
+    with col_map:
+        st.markdown("### Live Tactical Route Map")
+        m_cust = create_satellite_map([13.0827, 80.2707], zoom=11)
+        
+        if search_id and 'match_found' in locals() and match_found:
+            p_coord = HUB_COORDINATES["koyambedu"]
+            d_coord = HUB_COORDINATES["tambaram"]
+            
+            for key in HUB_COORDINATES:
+                if key in match_found["pickup"].lower(): p_coord = HUB_COORDINATES[key]
+                if key in match_found["destination"].lower(): d_coord = HUB_COORDINATES[key]
+                
+            line_color = "#FF9900" if match_found["status"] == "Stuck at Gate Queue" else ("#00FFFF" if match_found.get("is_split") else "#FF00FF")
+            
+            folium.PolyLine(locations=[p_coord, d_coord], color=line_color, weight=6, opacity=0.9).add_to(m_cust)
+            folium.Marker(p_coord, popup="SOURCE HUB", icon=folium.Icon(color='green', icon='home')).add_to(m_cust)
+            folium.Marker(d_coord, popup="FINAL DROP ZONE", icon=folium.Icon(color='blue', icon='flag')).add_to(m_cust)
+
+        st_folium(m_cust, width="100%", height=450, key="cust_map", returned_objects=[])
